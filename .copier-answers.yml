@@ -1,0 +1,23 @@
+# Changes here will be overwritten by Copier; do not edit by hand.
+# scripts/bootstrap.py fills the five standing tracker numbers after creation.
+_commit: '2861902'
+_src_path: https://github.com/forger88/TheForgeStaging.git
+arch_findings_epic: '343'
+coverage_floor: 92
+deferred_ideas_epic: '341'
+hanging_epic: '342'
+lint_command: pre-commit run --all-files
+local_full_suite_evidence_tracker: '344'
+max_build_threads: 3
+max_function_code_lines: 100
+max_module_lines: 1500
+owner_timezone: UTC
+post_merge_review_tracker: '60'
+project_name: TheForge
+project_slug: theforge
+repo_name: TheForgeStaging
+repo_owner: forger88
+setup_command: pip install pre-commit==4.3.0 && pre-commit install --install-hooks
+test_command: python3 -m unittest discover -s scripts -p 'test_*.py' && python3 -m
+    unittest discover -s template/scripts -p 'test_*.py'
+working_folder: the harness's shared project folder

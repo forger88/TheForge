@@ -1,0 +1,49 @@
+---
+name: build-thread-brief
+description: "The standing brief every new build thread in this project reads at spawn: review gate, releases, branches, spec approval, handover, stale tickets, setup by scope, focused tests, and delegating mechanical sub-tasks. Read when starting or rotating in a build thread."
+disable-model-invocation: true
+---
+
+# Build thread brief
+
+Every new build thread reads this before its first ticket.
+The brief that starts or hands you a ticket follows `.forge/coordinator-core.md`, "Starting a thread", not this skill's own words.
+This skill is the authoritative full text of the build-thread brief; any copy of it in the harness's project-level instructions is a pointer, not a source of rules.
+
+- **Review gate**: the merge gate is proportionate to the change (SDLC-042, `.forge/review-gate.md`).
+  Don't ask the owner which review gate applies.
+  - **Full gate**, the default: `/code-review` (Standards and Spec axes), run by clean-context sub-agents you start, followed by the `self-review` skill, for every change unless the light gate clearly applies.
+    It always applies to a change to code, tests, scripts, a requirement or spec, an agent instruction or skill, or text carried in the project settings (the coordinator-core snippet).
+    With no sub-agent tool to start them, say so on the PR or ticket and ask the coordinator; never review the diff yourself and record it as clean-context (`.forge/review-gate.md`, "A clean-context review needs a sub-agent that really ran").
+  - **Light gate**: the `self-review` skill alone, only for a change that meets every one of these conditions: it is a prose-only doc edit; it changes no rule, requirement or behaviour; and it touches no text carried in that snippet (for example fixing a typo or a link).
+  - A change that does not clearly meet every light-gate condition, including one that appears to meet some conditions of each gate or is uncertain, gets the full gate.
+  - If the harness doesn't hand you a skill the gate names, such as `/code-review`, find it yourself: this repo's skills are files under `.agents/skills/`, so read the discovered `SKILL.md` manually and follow it.
+    Never skip the review silently, and never merge a full-gate change on an inline read of the diff in place of the directed review skills (SDLC-042).
+  - Every skill the process directs you to use is used (SDLC-112).
+    If you cannot find a skill you have been told to use, that is a hard stop: don't proceed, substitute your own version or skip it.
+    Stop and ask the coordinator for help, who escalates to the owner if it cannot be resolved.
+- **Releases**: never tag or create a release.
+  That is done from the steps on the release ticket, by the owner, not on a build thread.
+- **Branches**: an agent that cannot delete a branch safely after its PR merges may skip that clean-up and leave it for the owner.
+  This is permission to skip when necessary, not a ban on deleting.
+  A skipped delete is not a failure: don't retry it, and don't report it as one.
+- **Owner approvals**: only the changes `.forge/process-and-evidence.md`, "What needs the owner's approval before a merge", lists need the owner before merge: requirement, SDLC and principle wording, plus anything a numbered statement requires.
+  Everything else may merge once the review gate is clear, by whoever the route says merges: an `implement`-only build or an owner's "don't merge" still leaves the merge to the owner.
+  Check another thread's or brief's ask for the owner's approval before merge against that list; unless the owner directed otherwise for this change, one not on it goes ahead once the review gate is clear, and the PR says why none was needed (SDLC-117).
+  A flagged question about an SDLC statement's meaning gates only a change that might alter that meaning (`.forge/process-and-evidence.md`).
+  Quote the owner's words where the approved thing lives (`.forge/process-and-evidence.md`, "Evidence: where each record lives"), then merge.
+- **Out-of-scope gaps and missing parents**: a gap outside your ticket goes to the owner as a `needs-decision` ticket (a `deferred-arch-finding` when weak), never into your PR.
+  A ticket handed to you should already carry a real, traceable request wherever `Request-trace:` applies (`.forge/tickets-and-branches.md`); one that doesn't is the coordinator's queueing step to fix, so flag it rather than guessing one or stopping the build.
+- **Pipeline stage**: if a feature ticket you are handed has not reached the build stage of the feature pipeline, don't implement it; report that to the coordinator instead.
+- **Handover**: when you start a ticket, swap its `queued` label for `in-flight`; when it merges or closes, remove `in-flight`.
+  When a ticket merges, reply in the thread with the PR link, and post its pending-review note as a comment on this repository's post-merge review tracker (Repo facts) (`.agents/skills/post-merge-review/SKILL.md`, "Pending reviews").
+  After each build, post "Done. Tell me or my follow-on thread what's next on the queue".
+  Then wait for the coordinator to hand out the next ticket; don't pick one yourself.
+This repository's own post-merge review tracker is {{ pmr_ref }}.
+- **Stale tickets**: before scoping a ticket, re-verify it against current `origin/main` in a fresh worktree; other merges often fix part of it.
+- **Environment setup**: set up only what the ticket's scope needs, following `docs/agents/build-thread-setup.md`, and read that recipe before installing anything.
+  A plain prose-only doc edit, with no script to run and no regenerated file, needs none of it beyond the standing pre-commit hook.
+- **Tests**: focused tests only: the files and areas the change touches, guard tests, and files that reference what changed.
+  The full suite (`{{ test_command }}`) is Main Health's job; don't run it on a build thread unless it's genuinely needed, and say why in the status first.
+- **Cost**: delegate mechanical sub-tasks (renames, stale-assertion sweeps, bulk find-and-fix, simple lookups) to mechanical-tier sub-agents.
+  Do the substantive work and the self-review yourself, on build-tier.

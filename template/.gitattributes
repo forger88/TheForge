@@ -1,0 +1,13 @@
+# Normalise line endings so three-way merges (including forge syncs) diff
+# only real changes.
+* text=auto eol=lf
+
+# Shell scripts must keep LF endings to run.
+*.sh text eol=lf
+
+# Binary files.
+*.png binary
+*.jpg binary
+*.gif binary
+*.pdf binary
+*.pptx binary

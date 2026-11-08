@@ -1,0 +1,81 @@
+# {{ project_name }} threat model
+
+This is the project's STRIDE threat model: its assets, trust boundaries, threats and controls as they are on `main`, the known gaps, and the risks the owner has accepted.
+It describes the current state, never a history (`.forge/docs-describe-current-state.md`).
+`.agents/skills/security-docs/SKILL.md` writes and maintains it, always at design-tier, in three modes: bootstrap (fill in this skeleton), delta (a feature's or a design-exit pass's security content), and reconcile (bring it current against `main`, before every release).
+
+**Status: skeleton.** Bootstrap mode has not run yet; every section below is empty.
+Record "Open gap: no threat model yet" on the tracker until it has.
+
+**Last reconciled against `main` @ `<sha>`** (<date>).
+
+## 1. Scope and method
+
+Framework: STRIDE (spoofing, tampering, repudiation, information disclosure, denial of service, elevation of privilege).
+
+- **In scope:** (the project's own components: services, clients, container images, CI, and owned-but-external dependencies)
+- **Trust-boundary peers, not subjects:** (what the project calls but doesn't own: identity provider, hosting platform, payment or model providers, upstream repositories)
+
+## 2. Assets
+
+| Asset | Why it matters | Where it lives |
+|---|---|---|
+
+## 3. Actors
+
+| Actor | How they reach the system | Privilege |
+|---|---|---|
+
+## 4. Entry points
+
+Regenerated from the code's own declarations (route decorators, a command registry, a message-handler table) at every reconcile, never enumerated by hand.
+
+| Entry point | Actor | Authentication | Declared in |
+|---|---|---|---|
+
+## 5. Trust boundaries and data flows
+
+| Boundary | Between | What crosses it | Control at the boundary |
+|---|---|---|---|
+
+## 6. Security assumptions
+
+What is assumed true about each trust-boundary peer, so the register below can build on it.
+
+## 7. STRIDE by boundary
+
+One entry per threat, grouped by trust boundary, each naming the entry points and assets it touches, the controls in place (cited by symbol, never by line number), and the residual risk.
+
+| ID | Boundary | STRIDE | Threat | Entry points / assets | Controls (by symbol) | Guard test | Residual risk |
+|---|---|---|---|---|---|---|---|
+
+## 8. Known gaps
+
+Every gap a control doesn't close, each with a tracking issue, never a TODO with no issue.
+A gap stays here until it is fixed or the owner accepts it (then it moves to §10).
+
+| Gap | Severity | Threat | Tracking |
+|---|---|---|---|
+
+Severity: **Must** (reachable today by an authenticated user or an on-path attacker), **Should** (degrades cleanly or needs a precondition), **Could** (defensive depth).
+
+## 9. Residual risk summary
+
+| Threat | Residual risk | State of controls |
+|---|---|---|
+
+## 10. Accepted risks
+
+Every risk the owner has decided to accept rather than close, with the owner's recorded words (SDLC-107).
+An accepted risk a user or integrator could hit is listed in every release's known issues.
+
+| Risk | Threat | Why accepted | Owner's recorded words | Tracking |
+|---|---|---|---|---|
+
+## 11. Keeping this document current
+
+- A feature's per-slice Threat-model deltas are folded in at its terminal-slice merge (`security-docs`, "Folding deltas at the terminal-slice merge").
+- A design-exit ticket's security-doc delta lands in that ticket's own PR.
+- A post-merge security finding that is a doc inaccuracy is fixed here through a reconcile ticket.
+- Before every release, reconcile mode runs against `main` and moves the "Last reconciled" line.
+- Project-specific regeneration commands for §4: (set at bootstrap).

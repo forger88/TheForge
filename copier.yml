@@ -1,0 +1,184 @@
+# Copier configuration for TheForge (ADR-0001).
+#
+# This file must sit at the template repository's root: Copier only looks for
+# copier.yml there. `_subdirectory: template` makes `template/` the content root,
+# so nothing else at this level (TheForge's own README, ADRs, guards) is copied.
+#
+#   copier copy --trust gh:forger88/TheForge <dest>
+#   copier update --trust          # in a generated project; see the forge-sync skill
+
+_min_copier_version: "9.6.0"
+_subdirectory: template
+_templates_suffix: .jinja
+_answers_file: .copier-answers.yml
+
+# Guard-script and doc-tooling test files are byte-identical across every
+# project and never change per project, so a synced copy only re-tests code
+# nobody in the consuming project is editing; they stay in TheForge and run
+# here. The two exceptions check this project's own rendered state
+# (its `.copier-answers.yml` answers) against its own prose, which only
+# exists once rendered, so they keep syncing and keep running under the
+# `guard-script-tests` pre-commit hook. `_subdirectory: template` already
+# makes Copier's own `DEFAULT_EXCLUDE` not apply (it only applies with no
+# subdirectory set), so this list is exhaustive on its own, not additive.
+_exclude:
+  - "scripts/test_*.py"
+  - "!scripts/test_check_module_size.py"
+  - "!scripts/test_coverage_floor_answer.py"
+  - "docs/tools/tests/test_*.py"
+
+# Project-owned seeds: written once at creation, never touched by `copier update`
+# (ADR-0002). A new project-owned file joins this list in the same change.
+_skip_if_exists:
+  - CLAUDE.md
+  - AGENTS.md
+  - CONTEXT.md
+  - docs/principles.md
+  - docs/decisions-log.md
+  - docs/forge-overrides.md
+  - docs/agents/lessons.md
+  - docs/agents/operational-constants.md
+  - docs/security/threat-model.md
+  - docs/requirements/requirements-specification.md
+  - docs/adr/README.md
+  - docs/tools/document-build.json
+  - docs/development/documentation-build.md
+
+# Post-generation task: run once, at creation, it creates the GitHub labels
+# and the five standing tracker issues. It skips its GitHub steps (and says
+# so) when GITHUB_TOKEN is unset; with a token already set, --from-copier
+# turns a refused token or any GitHub API error (for example a 404 because
+# the repository does not exist yet) into a printed warning and a clean
+# exit, rather than a non-zero exit that makes Copier delete the new project
+# (issue found against this script). Rerun it later with
+# `python3 scripts/bootstrap.py` either way.
+_tasks:
+  - command: ["python3", "scripts/bootstrap.py", "--from-copier"]
+    when: "{{ _copier_operation == 'copy' }}"
+
+_message_after_copy: |
+  Project "{{ project_name }}" generated.
+  Next: read instructing-agents.md in this project, work through
+  scripts/project_init_checklist.md, then ask your agents to run stage 0.
+
+# --- Questions -------------------------------------------------------------
+
+project_name:
+  type: str
+  help: Human-readable project name (used in prose, e.g. "Acme Billing").
+  validator: "{% if not project_name.strip() %}A project name is required.{% endif %}"
+
+project_slug:
+  type: str
+  help: Short machine name (lowercase, hyphens).
+  default: "{{ project_name.strip().lower().replace(' ', '-') }}"
+
+repo_owner:
+  type: str
+  help: GitHub owner (user or organisation) of the new repository.
+
+repo_name:
+  type: str
+  help: GitHub repository name.
+  default: "{{ project_slug }}"
+
+owner_timezone:
+  type: str
+  help: The owner's timezone (IANA name) for progress-report times.
+  default: UTC
+
+setup_command:
+  type: str
+  help: One command that installs the project's dependencies (stage 0 replaces the placeholder).
+  default: "echo 'setup_command not configured yet: set it at stage 0'"
+
+test_command:
+  type: str
+  help: Command that runs the full test suite (stage 0 replaces the placeholder).
+  default: "echo 'test_command not configured yet: set it at stage 0'"
+
+lint_command:
+  type: str
+  help: Command that lints and format-checks the codebase (stage 0 replaces the placeholder).
+  default: "echo 'lint_command not configured yet: set it at stage 0'"
+
+coverage_floor:
+  type: int
+  help: Starting coverage floor (percent) for the main test suite; it only ever ratchets up.
+  default: 80
+
+max_module_lines:
+  type: int
+  help: Module size cap in lines; stage 0 confirms or changes it, and the rule text and the size guard both render from it.
+  default: 1500
+
+max_function_code_lines:
+  type: int
+  help: Function size cap in code lines; stage 0 confirms or changes it, and the rule text and the size guard both render from it.
+  default: 100
+
+max_build_threads:
+  type: int
+  help: Maximum concurrent build threads the coordinator runs.
+  default: 3
+
+working_folder:
+  type: str
+  help: Where agents keep mutable working state (reports, handover notes) outside the repo.
+  default: the harness's shared project folder
+
+# Standing tracker issue numbers. Filled by scripts/bootstrap.py after creation;
+# leave empty when generating.
+post_merge_review_tracker:
+  type: str
+  help: Issue number of the post-merge review tracker (leave empty; bootstrap fills it).
+  default: ""
+
+deferred_ideas_epic:
+  type: str
+  help: Issue number of the deferred-ideas epic (leave empty; bootstrap fills it).
+  default: ""
+
+hanging_epic:
+  type: str
+  help: Issue number of the hanging-items epic (leave empty; bootstrap fills it).
+  default: ""
+
+arch_findings_epic:
+  type: str
+  help: Issue number of the deferred-architecture-findings epic (leave empty; bootstrap fills it).
+  default: ""
+
+local_full_suite_evidence_tracker:
+  type: str
+  help: Issue number of the local full-suite evidence tracker (leave empty; bootstrap fills it).
+  default: ""
+
+# --- Computed values (never asked, never stored) ---------------------------
+# Templated text cites the standing trackers through these, so it reads sensibly
+# both before bootstrap has recorded the numbers and after.
+
+pmr_ref:
+  type: str
+  when: false
+  default: "{% if post_merge_review_tracker %}#{{ post_merge_review_tracker }}{% else %}(its number is post_merge_review_tracker in .copier-answers.yml){% endif %}"
+
+ideas_ref:
+  type: str
+  when: false
+  default: "{% if deferred_ideas_epic %}#{{ deferred_ideas_epic }}{% else %}(its number is deferred_ideas_epic in .copier-answers.yml){% endif %}"
+
+hanging_ref:
+  type: str
+  when: false
+  default: "{% if hanging_epic %}#{{ hanging_epic }}{% else %}(its number is hanging_epic in .copier-answers.yml){% endif %}"
+
+arch_ref:
+  type: str
+  when: false
+  default: "{% if arch_findings_epic %}#{{ arch_findings_epic }}{% else %}(its number is arch_findings_epic in .copier-answers.yml){% endif %}"
+
+lfs_ref:
+  type: str
+  when: false
+  default: "{% if local_full_suite_evidence_tracker %}#{{ local_full_suite_evidence_tracker }}{% else %}(its number is local_full_suite_evidence_tracker in .copier-answers.yml){% endif %}"

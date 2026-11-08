@@ -1,0 +1,11 @@
+# TheForge
+
+<One or two sentences on what this context is and why it exists; write it at stage 0 or stage 2, once the owner has described the domain.>
+
+This file is the project's domain glossary and nothing else, in the shape `.agents/skills/domain-modeling/CONTEXT-FORMAT.md` sets: a term, a one- or two-sentence definition of what the term is, and an `_Avoid_:` line where a synonym needs ruling out.
+No implementation detail, file paths, issue history, status notes or configuration keys belong here (`docs/agents/domain.md`).
+Terms are settled into it as they come up, mostly during the stage 2 grilling interviews (SDLC-086).
+
+## Language
+
+No terms recorded yet.

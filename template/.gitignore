@@ -1,0 +1,31 @@
+# Agent working state that must never be committed.
+.scratch/
+.cache/
+*.log
+
+# Language and tool caches (extend at stage 0 for the project's stack).
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage/
+htmlcov/
+node_modules/
+dist/
+build/
+
+# Documentation build artifacts (docs/tools/document_build.py): never
+# commit a .pdf or .pptx a project can regenerate from its own sources.
+docs/_build/
+
+# Local environment and secrets: secrets never go in the repository.
+.env
+.env.*
+!.env.example
+
+# Editors and operating systems.
+.vscode/
+.idea/
+.DS_Store

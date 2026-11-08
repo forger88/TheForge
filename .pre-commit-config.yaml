@@ -1,0 +1,383 @@
+# Pre-commit hooks for contributions to TheForge itself. This file is never
+# copied into a generated project; template/.pre-commit-config.yaml.jinja is.
+# Since self-retrofit part 2 (slice 4), this file also carries every hook a
+# consuming project gets from that template, rendered at root the same way
+# every other consumer's would be, so TheForge now exercises its own gates.
+#
+# Install once per clone (the session-start hook does it in cloud sessions):
+#   pip install "pre-commit==4.3.0" && pre-commit install --install-hooks
+# Run before every push:   pre-commit run --all-files
+#
+# Never bypass with `git commit --no-verify` (CLAUDE.md, "TheForge stays
+# project-neutral"); fix what a hook flags instead.
+#
+# The commit-msg hooks below need their own hook type, which
+# default_install_hook_types makes `pre-commit install` install too.
+default_install_hook_types: [pre-commit, commit-msg]
+default_stages: [pre-commit]
+repos:
+  - repo: local
+    hooks:
+      # --- TheForge's own meta-guard hooks (govern template/ as forge-source;
+      # docs/forge-overrides.md's "TheForge meta-guard hooks" entry) ---
+
+      # The one leak shape a regex can catch without context (ADR-0003).
+      # Three kinds of file are excluded, not as leaks but as content that
+      # isn't ours to rewrite: THIRD_PARTY.md credit files, which may cite
+      # an upstream project's own references, a vendored third-party
+      # skill kept byte-for-byte (its own licence tracked in skills-lock.json),
+      # whose own upstream issue/PR references are that project's content,
+      # and the exact rendered-path set a self-retrofit copier copy produces
+      # at root: .copier-answers.yml's owner account, .forge/'s *_ref tracker
+      # numbers, the rendered .agents/skills/, NOTICE.md's owner account, and
+      # every generated doc under docs/agents/ (its *_ref tracker numbers)
+      # other than lessons.md and operational-constants.md, which are
+      # project-owned and hand-maintained, not forge-generated
+      # (docs/forge-overrides.md's own forge-owned-file scope), plus
+      # scripts/project_init_checklist.md (same scope) -- never a directory
+      # forge-source itself lives in, so template/ stays scanned and
+      # denylist-not-shipped-render still checks the render (T4; widened at
+      # self-retrofit part 2, slice 4, once rendering the rest of the forge
+      # content surfaced the same real-tracker-number and real-owner-account
+      # shape in more rendered paths than slice 3 alone had landed).
+      - id: no-issue-refs
+        name: no issue/PR-style references (#NNN)
+        entry: scripts/check-no-issue-refs.sh
+        language: script
+        types: [text]
+        exclude: (^|/)THIRD_PARTY\.md$|(^|/)template/\.agents/skills/impeccable/|^\.copier-answers\.yml$|^\.forge/|^\.agents/skills/|^NOTICE\.md$|^docs/agents/(?!lessons\.md$|operational-constants\.md$)[^/]+\.md$|^scripts/project_init_checklist\.md$|^docs/release-notes\.md$
+      # docs/release-notes.md legitimately cites this repository's own merged
+      # PR numbers (each entry cites its PR), so it gets the same warn-only treatment
+      # the tagging procedure already used for the tag's notes file before
+      # release notes were a committed document (CLAUDE.md, "TheForge stays
+      # project-neutral"). It is excluded above from the failing instance and
+      # scanned here instead.
+      - id: no-issue-refs-release-notes
+        name: no issue/PR-style references in docs/release-notes.md (warning only)
+        entry: scripts/check-no-issue-refs.sh --warn
+        language: script
+        types: [text]
+        files: ^docs/release-notes\.md$
+      # Project-specific terms, read from $THEFORGE_DENYLIST_FILE,
+      # ~/.theforge-denylist, or (the usual case now) this repository's own
+      # committed .theforge-denylist (scripts/denylist-path.sh). Skips cleanly
+      # when none of the three exists. Same vendored-third-party exclusion as
+      # above: its prose is not ours to rewrite without breaking its
+      # "Unmodified" status. .theforge-denylist itself is also excluded: the
+      # file legitimately contains every term it bans, so scanning it against
+      # itself is not a check, only guaranteed noise. Same rendered-path
+      # exclusion as no-issue-refs above, for the same reason (T4, widened the
+      # same way at slice 4).
+      - id: denylist
+        name: no denylisted project terms
+        entry: scripts/check-denylist.sh
+        language: script
+        types: [text]
+        exclude: (^|/)template/\.agents/skills/impeccable/|^\.theforge-denylist$|^\.copier-answers\.yml$|^\.forge/|^\.agents/skills/|^NOTICE\.md$|^docs/agents/(?!lessons\.md$|operational-constants\.md$)[^/]+\.md$|^scripts/project_init_checklist\.md$
+      # The same two scans over each commit message as it is written, since a
+      # message is never a staged file. Issue references only warn here: a
+      # commit may cite this repository's own issues.
+      - id: no-issue-refs-commit-msg
+        name: no issue/PR-style references in the commit message (warning only)
+        entry: scripts/check-no-issue-refs.sh --warn
+        language: script
+        stages: [commit-msg]
+        verbose: true
+      - id: denylist-commit-msg
+        name: no denylisted project terms in the commit message
+        entry: scripts/check-denylist.sh
+        language: script
+        stages: [commit-msg]
+      # Forge-owned rule files are one sentence per line, so a consuming
+      # project's three-way merge conflicts on the sentence that changed.
+      # Renamed from "one-sentence-per-line" (its id before this slice) to
+      # disambiguate it from the rendered consumer hook of the same shape
+      # below, which checks root .forge/ instead of template/.forge/.
+      - id: one-sentence-per-line-template
+        name: forge rule files are one sentence per line (template/)
+        entry: python3 template/scripts/check_one_sentence_per_line.py
+        language: system
+        files: ^template/\.forge/.*\.md(\.jinja)?$
+      # Refuses a commit into a raw clone, zip download or "Use this template"
+      # copy of TheForge used as-is instead of generated via `copier copy`
+      # (ADR-0004). Repo-structure check, not file-content: always runs,
+      # regardless of which files are staged.
+      - id: not-raw-clone
+        name: not a raw clone of TheForge
+        entry: scripts/check-not-raw-clone.sh
+        language: script
+        always_run: true
+        pass_filenames: false
+      # Refuses a commit that moves this repository's own committed denylist
+      # under template/ (where Copier would ship it) or references it from
+      # copier.yml. Repo-structure check: always runs, regardless of which
+      # files are staged.
+      - id: denylist-not-shipped
+        name: denylist is excluded from template/ and copier.yml
+        entry: scripts/check-denylist-not-shipped.sh
+        language: script
+        always_run: true
+        pass_filenames: false
+      # End-to-end counterpart of the static check above: renders the
+      # template with Copier and confirms the denylist never appears in the
+      # output either (scripts/test_denylist_not_shipped.py). Scoped, not
+      # always-run, since a full render is slower than a filesystem scan.
+      - id: denylist-not-shipped-render
+        name: a fresh copier render never carries the denylist
+        entry: python3 scripts/test_denylist_not_shipped.py
+        language: system
+        pass_filenames: false
+        files: ^(copier\.yml|\.theforge-denylist(-allow)?|template/.*|scripts/(denylist-path\.sh|check-denylist(-not-shipped)?\.sh|test_denylist_not_shipped\.py))$
+      # Vendored-skill drift against template/skills-lock.json's recorded
+      # content hashes; see template/scripts/check_skills_lock.py. always_run
+      # because a files: trigger misses a deletion; the other two hooks below
+      # share this reason. Renamed from "skills-lock" to disambiguate it from
+      # the rendered consumer hook of the same shape below, which checks root
+      # .agents/skills/ and root skills-lock.json instead of template/'s.
+      - id: skills-lock-template
+        name: vendored skills match skills-lock.json (template/)
+        entry: python3 template/scripts/check_skills_lock.py --template
+        language: system
+        pass_filenames: false
+        always_run: true
+      # Root-side counterpart of the consumer `forge-entrypoint` hook (ADR-0006).
+      # always_run for the same deletion gap as skills-lock-template above.
+      - id: forge-entrypoint-template
+        name: template/CLAUDE.md.jinja keeps its forge entrypoint import
+        entry: python3 template/scripts/check_forge_entrypoint.py --root template --template
+        language: system
+        pass_filenames: false
+        always_run: true
+      # Renders the template and runs the render's own guard-script tests and
+      # pre-commit hooks against it; see scripts/check-render.sh. always_run
+      # for the same deletion gap as skills-lock-template above, accepting the
+      # ~15-20s cost on every commit as the price of that.
+      - id: check-render
+        name: a freshly rendered project passes its own guards
+        entry: scripts/check-render.sh
+        language: script
+        pass_filenames: false
+        always_run: true
+      # template/scripts/check_pins.py is a stub until a consuming project's
+      # stage 0 fills it in, so nothing else checks that the devcontainer
+      # image and workflow actions this repository ships stay pinned
+      # (.forge/code-shape-rules.md, "Pinned dependencies"). The trigger
+      # covers the files this script scans plus its own source, so an edit
+      # that loosens the script itself is also caught on the next commit
+      # that touches one of them.
+      - id: template-pins
+        name: template devcontainer and workflow actions stay pinned
+        entry: python3 scripts/check_template_pins.py
+        language: system
+        pass_filenames: false
+        files: ^(template/\.devcontainer/devcontainer\.json\.jinja|template/\.github/workflows/.*|scripts/check_template_pins\.py|scripts/test_check_template_pins\.py)$
+
+      # --- Hooks TheForge renders for itself, same as any consumer (self-retrofit
+      # part 2, slice 4): these check root content, disjoint from the
+      # template/-scoped hooks above, so nothing here double-scans the same
+      # file as a hook above (docs/forge-overrides.md's "TheForge meta-guard
+      # hooks" entry, open item O1). ---
+
+      - id: check-branch-name
+        name: check branch name (not a session title)
+        entry: scripts/check_branch_name.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Stage 0 replaces this placeholder with the project's real linters and
+      # formatters (one hook per tool, each with a `files:` pattern at least as
+      # wide as what the tool's own config enforces; self-review part 6).
+      # A hardcoded no-op, never `{{ lint_command }}`:
+      # this hook runs as part of `pre-commit run --all-files` itself, so wiring a
+      # project's own lint command into its args recurses with no base case
+      # whenever that command is (or invokes) `pre-commit run --all-files` --
+      # exactly what a project that enforces lint through its pre-commit hook
+      # naturally answers.
+      - id: project-lint
+        name: project lint and format check (stage 0 replaces this placeholder)
+        entry: "true"
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Pinned-dependency guard (.forge/code-shape-rules.md, "Pinned dependencies");
+      # a stub until stage 0 fills it in. It runs on every commit, because a
+      # commit that only deletes a lock file passes no file a trigger could match.
+      - id: pinned-dependencies
+        name: every dependency pinned
+        entry: python3 scripts/check_pins.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        verbose: true
+
+      # Guard tests for scripts/, including this repo's own root-only
+      # tooling tests (never synced; most synced tests run once, via
+      # template-scripts-tests below). Trigger matches by extension, not
+      # by name, so a new root-only script isn't silently missed.
+      - id: guard-script-tests
+        name: guard script tests
+        entry: python3 -m unittest discover -s scripts -p 'test_*.py'
+        language: system
+        pass_filenames: false
+        files: ^scripts/.*\.(py|sh|json|md)$|^\.pre-commit-config\.yaml$|^\.copier-answers\.yml$|^\.forge/code-shape-rules\.md$|^\.forge/ci-and-checks\.md$|^\.forge/feature-pipeline\.md$
+
+      # The template/ counterpart: template/scripts/test_*.py ships to no
+      # project any more, so this is the only place most of them run
+      # -- directly against the source they're written against, the same
+      # shape template-doc-tools-tests already uses for docs/tools/tests/.
+      - id: template-scripts-tests
+        name: template guard script tests
+        entry: python3 -m unittest discover -s template/scripts -p 'test_*.py'
+        language: system
+        pass_filenames: false
+        files: ^template/scripts/.*\.(py|sh|md)$|^template/\.pre-commit-config\.yaml\.jinja$|^template/\.forge/code-shape-rules\.md\.jinja$|^template/\.forge/ci-and-checks\.md\.jinja$|^template/\.forge/feature-pipeline\.md\.jinja$|^template/\.forge/requirements-driven-changes\.md$|^template/\.forge/process-and-evidence\.md\.jinja$|^template/\.agents/skills/forge-sync/SKILL\.md$|^template/\.agents/skills/implement/SKILL\.md$|^template/\.agents/skills/post-merge-review/SKILL\.md\.jinja$|^template/\.agents/skills/queue-sweep/SKILL\.md\.jinja$|^template/\.agents/skills/release-notes/SKILL\.md\.jinja$|^template/\.agents/skills/watch-main-ci/SKILL\.md\.jinja$|^template/\.forge/forge-overrides\.md$|^template/\.gitignore$|^template/.*(baseline|allowlist)[^/]*\.json(\.jinja)?$
+
+      # The size caps. The trigger includes the allowlist, so lowering an entry
+      # alone re-runs the check.
+      - id: module-size
+        name: module and function size caps
+        entry: python3 scripts/check_module_size.py
+        language: system
+        pass_filenames: false
+        files: \.(py|js|mjs|cjs|ts|tsx|jsx|vue|go|rs|java|kt|rb|cs)$|^scripts/(check_module_size\.py|module_size_allowlist\.json)$
+
+      # Shrink-only dead-code ratchet; a stub until stage 0 picks the finder.
+      # verbose, so the stub's "not running yet" line shows on every commit.
+      - id: dead-code
+        name: dead-code ratchet
+        entry: python3 scripts/check_dead_code.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        verbose: true
+
+      # Shape and growth check for the per-module coverage baseline
+      # (implement-with-merge's Tests: field, SDLC-100). Not a coverage
+      # runner itself; see check_coverage_baseline.py.
+      - id: coverage-baseline
+        name: coverage baseline shape and growth
+        entry: python3 scripts/check_coverage_baseline.py
+        language: system
+        pass_filenames: false
+        # Includes the source files it baselines, so renaming one re-runs the check.
+        files: \.(py|js|mjs|cjs|ts|tsx|jsx|vue|go|rs|java|kt|rb|cs)$|^scripts/(check_coverage_baseline\.py|coverage_baseline\.json)$
+
+      # Cross-document consistency checks over this repo's own
+      # hand-written docs: the doc-build manifest's own `documents`, the
+      # requirements spec, and the ADRs via --also. language: system, not an
+      # isolated additional_dependencies venv, since the D2 check genuinely
+      # needs render_diagrams.py's own toolchain (pandoc/d2), already
+      # installed project-wide via docs/tools/requirements.txt. Not
+      # always_run: spinning up pandoc/d2 on every commit is too slow for a
+      # hook scoped to these specific paths (module-size/dead-code and this
+      # hook's own files: list the only places that scope lives -- a
+      # document-build.json entry added outside these paths needs a
+      # matching addition to this files: regex in the same change).
+      - id: doc-consistency
+        name: cross-document consistency checks
+        entry: python3 docs/tools/check_document_consistency.py --also 'docs/adr/*.md'
+        language: system
+        pass_filenames: false
+        files: ^docs/tools/document-build\.json$|^docs/requirements/requirements-specification\.md$|^docs/adr/.*\.md$|^docs/tools/(check_document_consistency|render_diagrams)\.py$
+
+      # Guard tests for every doc-build tool under docs/tools/ -- the
+      # checker above, document_build.py, render_diagrams.py and
+      # process_map.py alike. These test files don't sync to any project
+      # any more (byte-identical everywhere, never project-specific),
+      # so there is no root copy left to discover; template-doc-tools-tests
+      # below is the only place they run, directly against their source.
+      - id: template-doc-tools-tests
+        name: template doc-build tooling tests
+        entry: python3 -m unittest discover -s template/docs/tools/tests -p 'test_*.py'
+        language: system
+        pass_filenames: false
+        files: ^template/docs/tools/.*\.py$
+
+      # pass_filenames: false and a full-tree-scanning script (self-review part 6)
+      # so that editing this checker's own patterns re-checks every tracked
+      # file, not just the checker's own source.
+      - id: no-snapshot-assertions
+        name: no golden or snapshot tests
+        entry: python3 scripts/check_no_snapshots.py
+        language: system
+        pass_filenames: false
+        files: \.(py|js|mjs|cjs|ts|tsx|jsx|vue|mts|cts)$|(requirements|constraints).*\.(txt|in)$|package\.json$|(^|/)(pyproject\.toml|setup\.cfg|uv\.lock|poetry\.lock|pdm\.lock|Pipfile|Pipfile\.lock|pytest\.ini|tox\.ini)$
+
+      - id: coordinator-core
+        name: coordinator-core.md keeps its size limit, truncation guard and end marker
+        entry: python3 scripts/check_coordinator_core.py shape
+        language: system
+        pass_filenames: false
+        files: ^(\.forge/coordinator-core\.md|scripts/check_coordinator_core\.py)$
+
+      - id: coordinator-core-template
+        name: template coordinator-core.md keeps its size limit, truncation guard and end marker
+        entry: python3 template/scripts/check_coordinator_core.py shape template/.forge/coordinator-core.md.jinja
+        language: system
+        pass_filenames: false
+        files: ^template/(\.forge/coordinator-core\.md\.jinja|scripts/check_coordinator_core\.py)$
+
+      - id: coordinator-core-rotated
+        name: coordinator-core.md rolls its codeword whenever its body changes
+        entry: python3 scripts/check_coordinator_core.py rotated
+        language: system
+        pass_filenames: false
+        files: ^(\.forge/coordinator-core\.md|scripts/check_coordinator_core\.py)$
+
+      - id: coordinator-core-rotated-template
+        name: template coordinator-core.md rolls its codeword whenever its body changes
+        entry: python3 template/scripts/check_coordinator_core.py rotated template/.forge/coordinator-core.md.jinja
+        language: system
+        pass_filenames: false
+        files: ^template/(\.forge/coordinator-core\.md\.jinja|scripts/check_coordinator_core\.py)$
+
+      # Root-only: the lock is not shipped to consumers (forge-overrides.md).
+      - id: coordinator-core-lock
+        name: coordinator-core.md sections match the hashes of the source sections they condense
+        entry: python3 scripts/check_coordinator_core.py lock
+        language: system
+        pass_filenames: false
+        files: ^((template/)?(\.forge/(coordinator-core|orchestration|model-tiers|process-and-evidence|post-merge-review|feature-pipeline)\.md(\.jinja)?|docs/agents/triage-labels\.md(\.jinja)?|scripts/check_coordinator_core\.py)|coordinator-core\.lock\.json)$
+
+      # Forge-owned rule files stay one sentence per line so `copier update`
+      # merges conflict on one sentence, not a paragraph (.forge/forge-overrides.md).
+      - id: one-sentence-per-line
+        name: forge rule files one sentence per line
+        entry: python3 scripts/check_one_sentence_per_line.py
+        language: system
+        files: ^\.forge/.*\.md$
+
+      # Refuses a commit where CLAUDE.md has lost its `@.forge/entrypoint.md`
+      # line. CLAUDE.md carries no forge rule text of its own beyond that one
+      # import line, so losing it would silently disable every forge rule
+      # including this review gate itself. `files:` stays as a documentation
+      # hint of what the check actually enforces, but always_run is what
+      # fires it: pre-commit's own staged-file list excludes deletions, so a
+      # commit that `git rm`s `.forge/entrypoint.md` or CLAUDE.md itself --
+      # disabling every forge rule exactly as losing the import line does --
+      # would otherwise pass no file either pattern matches.
+      - id: forge-entrypoint
+        name: CLAUDE.md keeps its forge entrypoint import
+        entry: python3 scripts/check_forge_entrypoint.py
+        language: system
+        pass_filenames: false
+        files: ^(CLAUDE\.md|AGENTS\.md|\.forge/.*\.md|scripts/check_forge_entrypoint\.py)$
+        always_run: true
+
+      # Vendored-skill drift against skills-lock.json's recorded content
+      # hashes; see check_skills_lock.py. No network access, so it checks
+      # every commit, not only when forge-sync runs. `files:` stays as a
+      # documentation hint, but always_run is what fires it: pre-commit's
+      # own staged-file list excludes deletions, so a commit that `git rm`s
+      # a skill directory or `skills-lock.json` itself would otherwise pass
+      # no file either pattern matches (the same deletion gap as
+      # `forge-entrypoint`).
+      - id: skills-lock
+        name: vendored skills match skills-lock.json
+        entry: python3 scripts/check_skills_lock.py
+        language: system
+        pass_filenames: false
+        files: ^(\.agents/skills/.*|skills-lock\.json)$
+        always_run: true

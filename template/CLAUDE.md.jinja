@@ -1,0 +1,23 @@
+# Working on {{ project_name }}
+
+This file is project-owned: it is yours to edit, and `copier update` never overwrites it.
+See `instructing-agents.md` for how to work with the agents on this project and keep it current.
+
+@.forge/entrypoint.md
+
+## This project's own rules
+
+<!-- Rules specific to {{ project_name }} go here: its stack, its architecture, its
+     domain invariants, its operational constraints. Mark each rule Never or Default,
+     and say why it holds. Stage 0 (project inception) usually adds the first ones,
+     including the project's list of user-facing areas that `docs/agents/
+     triage-labels.md`'s release-note labels and `release-notes` group by. -->
+
+## Lessons this project has paid for
+
+<!-- One line per lesson, bolded name first; the history and worked example go in the
+     matching section of docs/agents/lessons.md (.forge/lessons-template.md). -->
+
+- **Concurrent sessions in one checkout**: give each agent session its own `git worktree`; a shared `HEAD` and index silently cross-contaminate.
+- **Off-the-shelf first**: before hand-rolling more than about 20 lines of generic infrastructure, find the library.
+- **Don't switch branches under a running test run**: no branch switch, stash or checkout in a worktree while a background test run is still executing there.

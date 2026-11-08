@@ -1,0 +1,8 @@
+{
+  "_note": "SDLC-100/SDLC-055: per-touched-module line-coverage baseline for implement-with-merge's Tests: field. Keyed by module path relative to the project's source root (check_coverage_baseline.py's MODULE_ROOT); each value is that module's last-recorded coverage percentage. A PR touching a listed module records `<module>: baseline <pct> -> branch <pct>` and raises the entry in the same PR when the branch's coverage is higher. An entry may never fall from the value it last recorded (check_coverage_baseline.py's growth check against origin/main enforces this); a drop is a Must, the same as any other self-review finding, unless the PR records an owner-approved exception (SDLC-054). A module with no entry yet adds one at its current percentage the first time it's touched -- that's not a drop. Grows lazily as PRs touch new modules.",
+  "modules": {
+    "template/docs/tools/build_errors.py": 100,
+    "template/docs/tools/render_diagrams.py": 100,
+    "template/docs/tools/document_build.py": 73
+  }
+}

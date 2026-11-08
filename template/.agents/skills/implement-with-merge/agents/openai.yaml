@@ -1,0 +1,5 @@
+interface:
+  display_name: "Implement with merge"
+  short_description: "Implement, review, PR, and merge to main"
+policy:
+  allow_implicit_invocation: false

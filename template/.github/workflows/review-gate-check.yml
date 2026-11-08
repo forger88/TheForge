@@ -1,0 +1,88 @@
+# Mechanical check that a PR's `Review:` field holds up against the review
+# gate its changed files require.
+#
+# COST: this reads the PR's body and changed-file list only -- no dependency
+# install, no test run -- so unlike this project's other CI (manual dispatch
+# only, to control Actions-minute spend; see ".forge/ci-and-checks.md", "Don't
+# manually trigger CI runs"), it runs automatically on every PR event. The
+# cost of running it on every PR is negligible; the cost of not running it is
+# a self-merge that cites a gate it didn't actually clear.
+name: review-gate-check
+
+on:
+  pull_request:
+    types: [opened, reopened, edited, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      # Pinned to a full commit SHA (.forge/code-shape-rules.md, "Pinned
+      # dependencies"). Verify this SHA against the action's v4.2.2 release
+      # before first use, and move it only in its own ticketed PR.
+      #
+      # ref: pins the checkout to the PR's base, not actions/checkout's own
+      # default (the PR's merge ref). Without this, a sync PR that edits one
+      # of this job's own guard scripts or this workflow would run its own
+      # tampered copy of the check against itself.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+      - name: Write the PR body and changed-file list
+        # The REST "list pull request files" endpoint, paginated with --paginate,
+        # not `gh pr diff --name-only`: the diff endpoint truncates on a large
+        # diff, which would silently drop a disqualifying file from the list and
+        # let a light-gate claim through unchecked (fails open) instead of
+        # failing the check (failing closed).
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr view "$PR_NUMBER" --json body -q .body > /tmp/pr_body.txt
+          gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate --jq '.[].filename' > /tmp/pr_files.txt
+      - name: "Check the Review: field against the review gate"
+        run: python3 scripts/check_review_gate.py /tmp/pr_body.txt /tmp/pr_files.txt
+      - name: Check the SDLC wording hold, if the lifecycle doc changed
+        # Read-only: fetches two file versions through the contents API, no
+        # dependency install or test run, same cost profile as the step above.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if grep -qxF "docs/software-development-lifecycle.md" /tmp/pr_files.txt; then
+            gh api "repos/$REPO/contents/docs/software-development-lifecycle.md?ref=$BASE_SHA" --jq '.content' 2>/dev/null | base64 -d > /tmp/sdlc_old.md || : > /tmp/sdlc_old.md
+            gh api "repos/$REPO/contents/docs/software-development-lifecycle.md?ref=$HEAD_SHA" --jq '.content' | base64 -d > /tmp/sdlc_new.md
+            python3 scripts/check_sdlc_wording_hold.py /tmp/pr_body.txt /tmp/sdlc_old.md /tmp/sdlc_new.md
+          else
+            echo "lifecycle doc not changed in this PR; nothing to check"
+          fi
+      - name: Check the trust-diff record, if the answers file changed
+        # Read-only, same cost profile as the step above. check_forge_sync_trust_record.py's
+        # own trigger is a changed _commit in the fetched answers files, not
+        # this grep -- the grep only skips the two contents-API calls when
+        # the file didn't change at all.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ ! -f scripts/check_forge_sync_trust_record.py ]; then
+            # The checkout above is pinned to this PR's base; on the one PR
+            # that adds this script, base doesn't have it yet.
+            echo "scripts/check_forge_sync_trust_record.py not on the base branch yet; skipping"
+          elif grep -qxF ".copier-answers.yml" /tmp/pr_files.txt; then
+            gh api "repos/$REPO/contents/.copier-answers.yml?ref=$BASE_SHA" --jq '.content' 2>/dev/null | base64 -d > /tmp/answers_old.yml || : > /tmp/answers_old.yml
+            gh api "repos/$REPO/contents/.copier-answers.yml?ref=$HEAD_SHA" --jq '.content' | base64 -d > /tmp/answers_new.yml
+            python3 scripts/check_forge_sync_trust_record.py /tmp/pr_body.txt /tmp/answers_old.yml /tmp/answers_new.yml
+          else
+            echo ".copier-answers.yml not changed in this PR; nothing to check"
+          fi

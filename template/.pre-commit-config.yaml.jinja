@@ -1,0 +1,154 @@
+# Git pre-commit hooks: the real lint gate (.forge/ci-and-checks.md, "Lint is
+# enforced by the pre-commit hook, not CI"). The lint workflow runs only on
+# manual dispatch, so these hooks are what keeps drift off main.
+#
+# Install once per clone (the session-start hook does it in cloud sessions):
+#   pip install "pre-commit==4.3.0"   # stage 0 moves this pin into the dev lock file
+#   pre-commit install --install-hooks
+#
+# Never bypass with `git commit --no-verify`; fix what a hook flags instead.
+# Every hook here is local; a non-local hook repo added later is pinned to a
+# full 40-character commit SHA in `rev:`, and every additional_dependencies
+# entry is `==` pinned (.forge/code-shape-rules.md, "Pinned dependencies").
+repos:
+  - repo: local
+    hooks:
+      - id: check-branch-name
+        name: check branch name (not a session title)
+        entry: scripts/check_branch_name.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Stage 0 replaces this placeholder with the project's real linters and
+      # formatters (one hook per tool, each with a `files:` pattern at least as
+      # wide as what the tool's own config enforces; self-review part 6).
+      # A hardcoded no-op, never `{% raw %}{{ lint_command }}{% endraw %}`:
+      # this hook runs as part of `pre-commit run --all-files` itself, so wiring a
+      # project's own lint command into its args recurses with no base case
+      # whenever that command is (or invokes) `pre-commit run --all-files` --
+      # exactly what a project that enforces lint through its pre-commit hook
+      # naturally answers.
+      - id: project-lint
+        name: project lint and format check (stage 0 replaces this placeholder)
+        entry: "true"
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Pinned-dependency guard (.forge/code-shape-rules.md, "Pinned dependencies");
+      # a stub until stage 0 fills it in. It runs on every commit, because a
+      # commit that only deletes a lock file passes no file a trigger could match.
+      - id: pinned-dependencies
+        name: every dependency pinned
+        entry: python3 scripts/check_pins.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        verbose: true
+
+      # Guard tests for scripts/. Most are tested once in TheForge itself;
+      # only the two rendered-state tests (size caps, coverage floor) run
+      # here. Trigger matches by extension, not by name, so a script this
+      # project later adds isn't silently missed.
+      - id: guard-script-tests
+        name: guard script tests
+        entry: python3 -m unittest discover -s scripts -p 'test_*.py'
+        language: system
+        pass_filenames: false
+        files: ^scripts/.*\.(py|sh|json|md)$|^\.pre-commit-config\.yaml$|^\.copier-answers\.yml$|^\.forge/code-shape-rules\.md$|^\.forge/ci-and-checks\.md$|^\.forge/feature-pipeline\.md$
+
+      # The size caps. The trigger includes the allowlist, so lowering an entry
+      # alone re-runs the check.
+      - id: module-size
+        name: module and function size caps
+        entry: python3 scripts/check_module_size.py
+        language: system
+        pass_filenames: false
+        files: \.(py|js|mjs|cjs|ts|tsx|jsx|vue|go|rs|java|kt|rb|cs)$|^scripts/(check_module_size\.py|module_size_allowlist\.json)$
+
+      # Shrink-only dead-code ratchet; a stub until stage 0 picks the finder.
+      # verbose, so the stub's "not running yet" line shows on every commit.
+      - id: dead-code
+        name: dead-code ratchet
+        entry: python3 scripts/check_dead_code.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        verbose: true
+
+      # Shape and growth check for the per-module coverage baseline
+      # (implement-with-merge's Tests: field, SDLC-100). Not a coverage
+      # runner itself; see check_coverage_baseline.py.
+      - id: coverage-baseline
+        name: coverage baseline shape and growth
+        entry: python3 scripts/check_coverage_baseline.py
+        language: system
+        pass_filenames: false
+        # Includes the source files it baselines, so renaming one re-runs the check.
+        files: \.(py|js|mjs|cjs|ts|tsx|jsx|vue|go|rs|java|kt|rb|cs)$|^scripts/(check_coverage_baseline\.py|coverage_baseline\.json)$
+
+      # pass_filenames: false and a full-tree-scanning script (self-review part 6)
+      # so that editing this checker's own patterns re-checks every tracked
+      # file, not just the checker's own source.
+      - id: no-snapshot-assertions
+        name: no golden or snapshot tests
+        entry: python3 scripts/check_no_snapshots.py
+        language: system
+        pass_filenames: false
+        files: \.(py|js|mjs|cjs|ts|tsx|jsx|vue|mts|cts)$|(requirements|constraints).*\.(txt|in)$|package\.json$|(^|/)(pyproject\.toml|setup\.cfg|uv\.lock|poetry\.lock|pdm\.lock|Pipfile|Pipfile\.lock|pytest\.ini|tox\.ini)$
+
+      - id: coordinator-core
+        name: coordinator-core.md keeps its size limit, truncation guard and end marker
+        entry: python3 scripts/check_coordinator_core.py shape
+        language: system
+        pass_filenames: false
+        files: ^(\.forge/coordinator-core\.md|scripts/check_coordinator_core\.py)$
+
+      - id: coordinator-core-rotated
+        name: coordinator-core.md rolls its codeword whenever its body changes
+        entry: python3 scripts/check_coordinator_core.py rotated
+        language: system
+        pass_filenames: false
+        files: ^(\.forge/coordinator-core\.md|scripts/check_coordinator_core\.py)$
+
+      # Forge-owned rule files stay one sentence per line so `copier update`
+      # merges conflict on one sentence, not a paragraph (.forge/forge-overrides.md).
+      - id: one-sentence-per-line
+        name: forge rule files one sentence per line
+        entry: python3 scripts/check_one_sentence_per_line.py
+        language: system
+        files: ^\.forge/.*\.md$
+
+      # Refuses a commit where CLAUDE.md has lost its `@.forge/entrypoint.md`
+      # line. CLAUDE.md carries no forge rule text of its own beyond that one
+      # import line, so losing it would silently disable every forge rule
+      # including this review gate itself. `files:` stays as a documentation
+      # hint of what the check actually enforces, but always_run is what
+      # fires it: pre-commit's own staged-file list excludes deletions, so a
+      # commit that `git rm`s `.forge/entrypoint.md` or CLAUDE.md itself --
+      # disabling every forge rule exactly as losing the import line does --
+      # would otherwise pass no file either pattern matches.
+      - id: forge-entrypoint
+        name: CLAUDE.md keeps its forge entrypoint import
+        entry: python3 scripts/check_forge_entrypoint.py
+        language: system
+        pass_filenames: false
+        files: ^(CLAUDE\.md|AGENTS\.md|\.forge/.*\.md|scripts/check_forge_entrypoint\.py)$
+        always_run: true
+
+      # Vendored-skill drift against skills-lock.json's recorded content
+      # hashes; see check_skills_lock.py. No network access, so it checks
+      # every commit, not only when forge-sync runs. `files:` stays as a
+      # documentation hint, but always_run is what fires it: pre-commit's
+      # own staged-file list excludes deletions, so a commit that `git rm`s
+      # a skill directory or `skills-lock.json` itself would otherwise pass
+      # no file either pattern matches (the same deletion gap as
+      # `forge-entrypoint`).
+      - id: skills-lock
+        name: vendored skills match skills-lock.json
+        entry: python3 scripts/check_skills_lock.py
+        language: system
+        pass_filenames: false
+        files: ^(\.agents/skills/.*|skills-lock\.json)$
+        always_run: true

@@ -1,0 +1,275 @@
+# Feature pipeline: from idea to "ticket it and queue it"
+
+Instructions here are duplicated, pithily, into `coordinator-core.md` for agent harness that cannot load and handle this instructions file directly.
+TheForge's coordinator-core ADR records why that file exists and the constraints that must survive every edit to it.
+A change here updates `.forge/coordinator-core.md` in the same change.
+TheForge's `lock` check fails until the core section citing this one is re-read and the lock refreshed.
+
+Every new feature goes through the same stages, in order, each leaving a record the next stage points at.
+Skipping a stage is how a cheap implementation agent ends up guessing.
+Stage 0 runs once per repo, before the first feature; after that a feature starts at stage 1.
+
+This file is the reference; `.agents/skills/feature-pipeline/SKILL.md` enforces it.
+`grill-me` (stage 2) adds a nine-item checklist to the feature issue so the stages that are conversations rather than tickets are tracked somewhere cheap.
+`to-tickets` (stage 6) files a post-merge review pass ticket alongside the build slices, plus a stage 8 architecture pass ticket blocked on it, except for a single-slice design, which gets only the post-merge review pass ticket.
+A feature whose stage 3 thread instead invokes its own single-ticket discernment (stage 3, below) skips stage 6's own ticket-filing step, not the stages after it: the feature issue is already its own build ticket, so stage 7 (build) proceeds from it directly, and that discernment fires `feature-pipeline`'s job (b) directly for the follow-up filing, with the same single-slice-design result — a post-merge review pass ticket only.
+A feature's own issue is the pipeline's record.
+
+## Stage 0: project inception (once per repo)
+
+Before the first feature, scaffold the issue tracker, triage labels and domain-doc layout the other skills assume (the bootstrap script does most of this; `docs/agents/issue-tracker.md`, `docs/agents/triage-labels.md` and `docs/agents/domain.md` describe the result).
+Offer to run the `impeccable` skill's setup to capture durable product context for the project's UI work.
+Ask the owner once whether to run it now or skip it; if skipped, say so plainly, and offer it again the first time a feature introduces or changes a UI.
+That product context captures product truth (users, purpose, positioning, constraints) and points to `CONTEXT.md` for domain vocabulary rather than duplicating its definitions.
+Offer to run the `doc-build-setup` skill's setup too, in the same ask-once/skip-and-say-so shape, to set up this project's document/diagram build pipeline.
+Offer to run the `process-map-setup` skill's setup too, in the same ask-once/skip-and-say-so shape, to set up the process map and skills-index generation mechanism.
+Offer stack-specific skills too, once per matching stack, the same ask-once shape: a small table of stack → skills, with one row today, TypeScript → `setup-ts-deep-modules` and `migrate-to-shoehorn`.
+On opt-in, write a "TypeScript conventions" rule into `CLAUDE.md` that cites both skills by name, and seed each skill's `docs/tools/process-map.yaml` entry without `discretionary: true`, with a why edge to that rule, then regenerate `docs/process-map.md` and `docs/agents/skills-index.md` with `process_map.py build` and `process_map.py index`, and run `process_map.py check` to confirm.
+When `process-map-setup` was skipped, write the `CLAUDE.md` rule now and note on the skip record that both skills' process-map entries are still owed once `process-map-setup` runs.
+On decline, both skills stay `discretionary: true`.
+A later stack adds its own row to the table, not new prose.
+
+Then a grilling thread (`grill-me`, which runs `grilling`) with the owner draws out the principles every feature must respect.
+The interview covers what in the domain will change underneath the project, which external systems are trusted and how far, which frameworks are built on rather than written, size and complexity budgets, test philosophy, and security posture.
+Each principle whose exact wording the owner approves is written into `docs/principles.md` (the principles part of `domain-modeling`), with its why and its enforcement, in one ticketed docs PR that quotes the owner's approval of that wording.
+Stage 0 also chooses the project's real tools for the generic guards (linter, dead-code tool, size-cap measurement, test-coverage tool), sets the `coverage_floor` answer from a measured baseline of the project's own suite, and replaces the placeholder commands the template shipped with.
+Stage 0 also writes `scripts/local-full-suite.sh`, this project's own local stand-in for the gap between scheduled CI passes (`.forge/ci-and-checks.md`; `watch-main-ci`'s Routine 2 names its purpose, schedule and evidence format), rather than leaving it as a gap for Main Health to discover later.
+`docs/principles.md` holding at least one owner-confirmed principle beyond the forge-seeded one on `main` is the record that stage 0 has run.
+Stage 0 has no line on a feature's checklist.
+
+## Stage 1: idea
+
+A `future` issue under the deferred-ideas epic #341 records the problem, the owner's own words, and the open questions.
+It carries no design.
+A new idea is parked only when the owner says it is deferred; if the owner's words do not say deferred, or are unclear, ask whether it is for now or deferred before filing it, and never assume.
+The moment the owner says to start the pipeline, the issue is detached from the deferred-ideas epic and loses the `future` label in that same action.
+
+## Stage 2: grilling for use cases
+
+A grilling thread (`grill-me`) with the owner elicits the high-level use cases and the product constraints (scope, delivery, performance, who may do what), and records them on the issue.
+It records use cases only; implementation stays out.
+As terms settle, the thread resolves them into the `CONTEXT.md` glossary right there: it challenges a term that collides with an existing one and sharpens a fuzzy one into a canonical term.
+A collision between two near-identical terms is caught here, not at stage 3 or 4.
+ADRs are stage 3's job, which is why `grill-with-docs` (grilling plus all of `domain-modeling`, ADRs included) is not the skill for stage 2.
+
+## Stage 3: high-level design
+
+> Before any other work, check the model actually serving this turn against what `.forge/model-tiers.md` maps this tier to.
+> In Claude Code on the web, for example, call `get_session` with no id and read `session_context.model` and `external_metadata.last_served_model`; another harness has its own equivalent of "what model is actually running this turn."
+> If it is below the mapped model, do no other work on this ticket or stage: report to the coordinator and the owner that this thread must be restarted on the right model, and stop there.
+> A thread cannot switch its own model, which is why the gate stops and reports rather than continuing or switching itself.
+> Running on a model above the mapped one is not a problem: note it in one line and proceed.
+
+Before anything else, this thread removes `ready-for-feature-design` from the feature issue, with no replacement label, via the mechanical-tier label-sync sub-agent (`docs/agents/triage-labels.md`, "Mechanical label sync after design-type work"); the tracker carries no ready label again until stage 6 labels its slice tickets, except where the single-ticket discernment below makes the tracker itself the build ticket.
+
+A design thread (design-tier, which never implements) posts one design comment on the issue.
+The comment carries facts verified against `origin/main` with file references, the architecture, the decisions, and the proposed requirement wording (short, one "shall" each).
+It carries a security section: new attack surface, trust boundaries crossed, data stored or exposed, and the STRIDE threats it raises with their controls, written against `docs/security/threat-model.md` using `security-docs`' delta mode.
+A non-security risk the design accepts or leaves open is filed as a `needs-decision` ticket and linked.
+When the design introduces or changes a user interface, the comment includes a check against the `impeccable` skill.
+ADRs the design needs are drafted as text in the comment at this stage.
+When the design's central approach is a problem with known outside solutions (a protocol, an algorithm, an established UX or architecture pattern) that the repo itself doesn't settle, the design thread delegates a prior-art lookup to `research` and cites the findings in the design comment, landing the findings file with the design doc at stage 5: the findings file is committed next to its ADR as `docs/adr/NNNN-<slug>.research.md`, or, when it informed no ADR, next to the design doc as `docs/design/<slug>.research-<topic>.md`; findings are never left only in a comment or on a throwaway branch.
+
+The design thread asks the owner product questions one at a time or in batches, as suits the owner, each as a decision card that follows "Every approval request links to the wording it asks about" below.
+Each owner decision gets its own amendment comment that says what it supersedes.
+Tick checklist item 3 in the same edit that posts the design comment.
+
+**Stage 3 discernment for a whole feature in one ticket, low drift risk.**
+The stage 3 thread may itself judge, with no owner decision card, that this whole feature — not a slice carved out of a larger one — is achievable within one ticket and carries low risk of architectural drift, and record that judgement to skip stages 5 and 8 for this feature.
+This discernment is whole-feature-only: a feature whose design turns out to need more than one slice, or where only one slice among several would qualify as low-risk, does not qualify.
+A single low-risk slice inside an otherwise multi-slice feature is routed normally through `to-tickets`'s own per-slice criteria at stage 6 instead.
+
+The test is conjunctive: none of the five `ready-for-structure` routing criteria in `docs/agents/triage-labels.md` apply to the feature's design, and the whole feature fits in one ticket end to end.
+When stage 3 invokes this discernment, the design comment names which of the five criteria it checked and found not to apply, not merely "none apply".
+
+The feature issue itself becomes the build ticket: no separate child ticket is filed through `to-tickets`, and stage 6 above does not run for this feature.
+In the same edit that posts the design comment, the thread ticks checklist item 5 as skipped (`[x] 5. Detailed design (skipped — stage 3 discernment)`).
+That edit also hands `feature-pipeline`'s job (b) to a build-tier sub-agent directly — the "fire it directly ... outside those two paths" case its own frontmatter already names — treating the feature issue as the sole, terminal build slice.
+Job (b) files the `Post-merge review pass for <feature>` ticket blocked by the feature issue itself, and its own single-slice-design shortcut already skips filing the architecture-pass ticket and ticks checklist item 9 as skipped for exactly that reason, so no new logic is needed there.
+Checklist item 8 (the post-merge review pass) is never skipped by this discernment: a whole feature built as one ticket gets the same post-merge review a single-slice design doc already gets, never less.
+Job (b) also ticks checklist item 6 once it has filed, or deliberately skipped, every follow-up ticket it was ever going to file, the same as it already does for a single-slice design.
+Item 6 gets a plain tick here, not a skip annotation like items 5 and 9: unlike those two, this feature still gets exactly the ticket-filing work item 6 represents (filing, or deliberately skipping, the one ticket job (b) was ever going to file), so it is genuinely done, not bypassed.
+Only once items 5, 6 and 9 are ticked does that same pass start the mechanical-tier label-sync sub-agent (`docs/agents/triage-labels.md`, "Mechanical label sync after design-type work") to apply `ready-for-build` to the feature issue directly: its `ready-for-feature-design` was already removed when this thread started stage 3, so the tracker carries no ready label to flip from, only one to gain now that it has become the build ticket.
+The one issue then carries both the pipeline checklist and the ordinary ticket `Requirements:`/`Tests:`/`Review:` fields.
+Stage 4 (requirements approval) still runs as normal before the build starts.
+
+## Stage 4: requirements approval
+
+The owner approves the requirement wording on the issue.
+The approval request links to the stage 3 comment (or the spec-only PR's diff, once it exists) and quotes or summarises the wording inline.
+When the design changes no requirement's wording, stage 4 is a no-op: tick checklist item 4 in the same edit that posts the stage 3 comment, with a one-line note that no wording changed, and go straight to stage 5.
+Otherwise, the stage 3 design thread itself opens the spec-only PR citing the owner's approval comment, once recorded, and merges it (`.forge/requirements-driven-changes.md`).
+It is not handed to a separate thread: transcribing wording the owner already approved is mechanical rather than design judgement, and SDLC-011 already treats a strict design/build split as desirable rather than required, precisely so a thread doesn't sit idle waiting on a handoff for work this small.
+The design thread may delegate the literal diff edit to a mechanical-tier sub-agent.
+It keeps the PR, the review gate and the merge itself, since it is the thread that can confirm the merged diff matches the linked, approved wording verbatim.
+The review gate runs in full regardless of which thread opens the PR (`.forge/review-gate.md`); this changes who merges it, never what clears it.
+Status changes and ADRs need no approval; requirement wording does (`.forge/process-and-evidence.md`, "What needs the owner's approval before a merge").
+Tick checklist item 4 in the same action as that PR's merge, or as the no-op note above when nothing needed approval.
+
+## Stage 5: detailed design
+
+> Before any other work, check the model actually serving this turn against what `.forge/model-tiers.md` maps this tier to.
+> In Claude Code on the web, for example, call `get_session` with no id and read `session_context.model` and `external_metadata.last_served_model`; another harness has its own equivalent of "what model is actually running this turn."
+> If it is below the mapped model, do no other work on this ticket or stage: report to the coordinator and the owner that this thread must be restarted on the right model, and stop there.
+> A thread cannot switch its own model, which is why the gate stops and reports rather than continuing or switching itself.
+> Running on a model above the mapped one is not a problem: note it in one line and proceed.
+
+Stage 5 runs in the same design thread as stage 3 (or 4), with no new brief or re-queue between them, so this is normally a repeat of a check the thread already cleared this session; a thread picking stage 5 up fresh (a retrofit, a rotation) cannot skip it on that assumption.
+
+The design thread writes `docs/design/<slug>.md` and the ADR files in one docs PR (`Requirements: none (internal)`).
+The design doc is written for the agents that will build it, using the `codebase-design` vocabulary and the `writing-for-agents` rules.
+When the feature introduces a new incident type, the doc names the runbook it needs under `docs/security/runbooks/`.
+
+The design doc has these parts:
+
+- the invariants every slice keeps;
+- a module map: new modules, and the one named hook in each touched module;
+- the data model and configuration keys;
+- a build-versus-buy line for every new module: the library considered and why it was rejected, or the library chosen instead of hand-rolling (`.forge/code-shape-rules.md`, "Adopt the abstraction early, then stay on it");
+- when that line depends on facts about an external library or API, the design thread delegates the reading to `research` and cites its findings in the line;
+- such a decision gets an ADR, drafted in the stage 3 comment and landed with the design doc, with the findings kept beside it (the findings file is committed next to its ADR as `docs/adr/NNNN-<slug>.research.md`, or, when it informed no ADR, next to the design doc as `docs/design/<slug>.research-<topic>.md`);
+- one section per implementation slice, each with its purpose, module and interface (signatures, error modes), behaviour, the seam it is tested through, and the guard test that must go red when the check is removed;
+- in each slice section, a threat-model delta: the proposed rows for `docs/security/threat-model.md` and any runbook needed, carrying forward stage 3's security section, or "Security: none" with a one-line reason;
+- in each slice section, a UI check against the `impeccable` skill when the slice introduces or changes a user interface, or "UI: none" with a one-line reason;
+- in each slice section, its file scope, blocking edges and requirement IDs;
+- a test matrix;
+- open items the implementer must re-verify.
+
+File paths and signatures belong here, unlike a ticket body, because this document constrains the implementation.
+Before the doc PR opens, the design thread applies `codebase-design`'s own tests to its module map.
+It runs the deletion test on every new module, and the "one adapter is a hypothetical seam, two adapters make a real one" test on every new protocol or adapter, with a one-line justification for each seam it keeps.
+Every module-map and build-vs-buy row must be claimed by some slice; `to-tickets` checks this at stage 6, so a design thread that wants to self-check cheaply before the doc PR can run that same cross-check early.
+Tick checklist item 5 in the same action as the design doc PR's merge.
+The feature issue's `ready-for-feature-design` was already removed when this thread started stage 3, and stage 5 applies no label of its own to the tracker, which stays an `epic` until stage 6 labels its slice tickets.
+
+Stage 5 follows on from stage 4 (or from stage 3 when stage 4 is a no-op) in the same design thread, with no new brief or re-queue between them.
+The design doc PR needs no owner approval: a design doc and its ADRs merge once the review gate is clear (`.forge/process-and-evidence.md`, "What needs the owner's approval before a merge").
+Stage 4's requirement wording is not an exception to the stage order: the design doc PR merges only after stage 4's spec-only PR has merged.
+If the design needs any other item on that closed list (a principle's wording, say, or lowering a coverage floor), only that item waits: put it to the owner with a link to the exact wording and the wording quoted ("Every approval request links to the wording it asks about" below), carry it in its own PR, and let the rest of the design doc merge.
+
+## Stage 6: ticket it and queue it
+
+When the owner says so, the coordinator arranges for `to-tickets` to run against the design doc.
+The owner's word schedules the build; it is not a further approval of the design, which stages 3 to 5 already settled, and `to-tickets` skips its own breakdown-approval step here, since one slice is one ticket.
+Stage 6 always waits for that word, because it decides when the build takes slots in the queue; nothing below replaces it or infers it from an earlier approval.
+
+So that the feature never sits unnoticed between stages, the design thread asks for the word itself in the same action as the design doc PR's merge.
+It posts one decision card, "Ticket and queue <feature> now?", that links the merged design doc and lists its slices, with options to ticket it now or hold it, and stays open on that card.
+The design thread records the owner's answer on the feature issue in the approval-record form (`.forge/process-and-evidence.md`, "Evidence: where each record lives") and tells the coordinator, whichever way it went.
+The coordinator's standing arrangement for stage 6 is that the design thread which wrote the doc runs the ticketing, since it already holds the doc, so on "ticket it now" the thread proceeds without waiting to be re-briefed.
+It hands `to-tickets` to a build-tier sub-agent, because ticketing is build-tier work whatever thread orchestrates it.
+When the owner gives the word somewhere else instead, such as the project chat, the coordinator relays it to that thread, which proceeds the same way.
+On "hold it", the thread's job ends there: it is resolved, and when the owner later gives the word, the coordinator reopens it or briefs a fresh design thread with the doc to run the ticketing.
+One slice is normally one ticket; a slice is split only along a seam the doc already names.
+An orphan found by `to-tickets`' cross-check of the design doc's module map and build-vs-buy rows sends the doc back to stage 5 before any ticket is filed.
+Each ticket points at its slice and adds only the standing brief rules (merge rule, scoped tests, requirement IDs, "Blocked by").
+Each ticket is labelled `ready-for-build` or `ready-for-structure` per `docs/agents/triage-labels.md`'s routing criteria, and tickets are handed out one at a time per build thread.
+A slice of this stage 5 design doc defaults to `ready-for-build` under that same routing criteria's narrow carve-out, even where criteria 1-5 would otherwise match its subject matter.
+A slice whose design-doc section left the question open goes back to stage 5 instead, never to a design-exit pass for nested design inside the ticket.
+The owner's stage 6 word is the acceptance of every ticket this stage files.
+The design thread reports the filed tickets to the coordinator in the same action that ticks item 6, and the coordinator then labels each unblocked one `queued` and points its `Request-trace:` line at the feature issue, with no further owner word; a blocked one is queued the moment its blockers close (`.forge/coordinator-core.md`, "The label state machine").
+No further owner word starts stage 7: the slot limits and the coordinator's hand-out order alone decide when each queued slice is built.
+
+## Stage 7: build
+
+Each ticket is built with `implement-with-merge`, re-invoked in full at the start of each ticket.
+A thread that has built several tickets re-reads `implement-with-merge`, `implement` and `tdd`'s guard-removal section before the first test of every next one, because test discipline decays across a long thread.
+When implementation has to deviate from the design doc, the PR updates the doc's section in the same PR and says why in the PR body; the doc is the record of what was built.
+A gap the builder finds outside the slice's scope is not built and not queued: it is raised to the owner as a `needs-decision` ticket, or filed as a `deferred-arch-finding` when it is weak (SDLC-116).
+A slice pauses for an owner approval only when it needs an item on the closed approval list, such as a requirement whose wording must change before the slice can satisfy it; that slice waits, with the exact wording linked and quoted, while the feature's other unblocked slices keep building.
+A `needs-decision` label or an explicit owner hold still stops its own ticket, as it does anywhere else.
+A design-doc update for a deviation, the terminal follow-up PR below and the post-merge review pass need no merge approval from the owner, so none of them waits for one.
+
+A slice is terminal when no other slice in the feature's graph blocks on it, and a feature with parallel branches can have more than one terminal slice.
+When the merged slice is terminal and every other terminal slice of the feature is already merged, a small follow-up PR, through the ordinary branch-and-review path, makes these edits right after that merge, never inside the slice's own PR and never as a direct write to `main`:
+
+- the design doc's status line says "implemented, reconciled against main @ <sha>", the architecture description and user guide carry the feature from then on, and `implement-with-merge` ticks checklist item 7;
+- a short-lived design-tier sub-agent folds every slice's threat-model delta into `docs/security/threat-model.md` and any other security doc it names, using `security-docs`' delta mode.
+  Before any other work, that sub-agent runs the tier gate:
+
+  > Before any other work, check the model actually serving this turn against what `.forge/model-tiers.md` maps this tier to.
+  > In Claude Code on the web, for example, call `get_session` with no id and read `session_context.model` and `external_metadata.last_served_model`; another harness has its own equivalent of "what model is actually running this turn."
+  > If it is below the mapped model, do no other work on this ticket or stage: report to the coordinator and the owner that this thread must be restarted on the right model, and stop there.
+  > A thread cannot switch its own model, which is why the gate stops and reports rather than continuing or switching itself.
+  > Running on a model above the mapped one is not a problem: note it in one line and proceed.
+
+This follow-up PR still needs a ticket (the feature issue itself backs it, so no new ticket is filed) and the review gate (`.forge/review-gate.md`), the same as any other change.
+The light gate fits only the status-line and checklist-tick edit on its own; a follow-up that also carries a threat-model fold gets the full gate, because new threat and control rows are not a prose-only edit that changes no rule, requirement or behaviour.
+A thread never skips the PR path itself to save that review.
+
+The post-merge review pass ticket was filed at stage 6, blocked by every terminal build slice, so finishing stage 7 unblocks it.
+It runs before stage 8, so the architecture pass reviews code the post-merge review has already seen.
+The standing post-merge review cadence (`.forge/post-merge-review.md`) is a safety net under this ticket, never a substitute for it.
+
+## Stage 8: architecture pass
+
+The architecture pass ticket was filed at stage 6, blocked by the post-merge review pass ticket, so it surfaces on the queue once that pass is done.
+For a single-slice design this stage is skipped outright: no ticket exists, nobody runs the pass, and the feature issue's checklist records the skip.
+
+Otherwise, before any other work, the fresh design-tier thread briefed for this pass runs the tier gate:
+
+> Before any other work, check the model actually serving this turn against what `.forge/model-tiers.md` maps this tier to.
+> In Claude Code on the web, for example, call `get_session` with no id and read `session_context.model` and `external_metadata.last_served_model`; another harness has its own equivalent of "what model is actually running this turn."
+> If it is below the mapped model, do no other work on this ticket or stage: report to the coordinator and the owner that this thread must be restarted on the right model, and stop there.
+> A thread cannot switch its own model, which is why the gate stops and reports rather than continuing or switching itself.
+> Running on a model above the mapped one is not a problem: note it in one line and proceed.
+
+That thread, briefed with the design doc and the feature issue's design comments, runs `improve-codebase-architecture` scoped to the files the design doc's slices named or touched, never the whole codebase.
+For any user interface in that scope it also checks for drift from stage 3 and 5's UI check against the `impeccable` skill.
+It runs once per feature.
+
+The same thread triages every finding into exactly one of four outcomes, with no fifth:
+
+- a Strong finding is fixed now;
+- a rejected finding with a load-bearing reason becomes an ADR, so a later pass does not raise it again;
+- a finding worth exploring is raised to the owner as an open question, a `needs-decision` ticket, and the owner decides whether it is fixed, recorded as an ADR or parked;
+- a weak finding becomes a `deferred-arch-finding` issue under the architecture-findings epic #343 that names the finding and the files.
+
+`deferred-arch-finding` carries both provenance (an automated review pass, not the owner) and status (not actioned right now), which keeps pass-sourced ideas out of the deferred-ideas epic, which holds only ideas the owner raised.
+The thread posts the triage on the feature's issue, then hands the coordinator the fixes to queue as tickets, one per finding, each labelled by the routing criteria and built like any other slice.
+Every Strong-finding ticket and every `needs-decision` ticket this triage files is added as a sub-issue of the feature's own tracker issue, in the same action that files it, so the tracker's own state reflects what the pass actually found.
+A `deferred-arch-finding` ticket stays under the architecture-findings epic #343 only, since it is deliberately parked rather than to-be-actioned.
+If two or more findings share a shape, the thread also asks the owner "is there a principle here?".
+This gate is routine, not optional: a per-PR review cannot see what only the whole feature shows, such as a seam two slices each patched around, a helper added twice, or a hook that drifted from the doc.
+The stage 8 architecture-pass ticket itself closes once the triage is posted and every finding from it is filed; it does not wait on any filed ticket's own fix to merge.
+The feature issue's checklist item for this stage is ticked only once the architecture-pass ticket and every Strong-finding and `needs-decision` ticket it filed are themselves resolved, never when the triage is merely posted or the pass ticket alone closes.
+A ticket is resolved when it is closed, or when it is a `needs-decision` ticket the owner has settled by parking it (for example as `hanging` or as a `deferred-arch-finding`), with the owner's decision recorded on it and the ticket detached from the tracker.
+
+## Closing the tracker
+
+A feature tracker reaching 100% of its sub-issues closed is not by itself the signal to close it.
+Before closing it, also confirm three things.
+Checklist items 8 and 9 are both ticked, meaning the passes actually ran rather than their tickets merely closing.
+Every Must finding the post-merge review filed, and every Strong finding the architecture pass fixed now, has its fix PR merged, not merely filed.
+Any owner-facing question either pass raised (a themed-bundle decision card, an "is there a principle here?" question) has been answered.
+An open themed Should bundle or an open `deferred-arch-finding` ticket does not block closing, but the closing comment says so and names those tickets so they keep their provenance.
+
+## Every approval request links to the wording it asks about (Default)
+
+Any request for the owner's decision on, or approval of, exact wording carries both of these in the request itself, not just somewhere earlier in the thread:
+
+1. a direct link to the comment, PR diff or doc section holding the exact text being approved;
+2. the wording itself, quoted verbatim, or faithfully summarised when the full text will not fit.
+
+"Please approve the wording above" is not a request on its own; the owner should never have to hunt for the wording before acting on it.
+ADRs and status changes need no approval, so this rule never applies to them.
+
+## Which capability tier runs which stage
+
+Cost follows capability: the tier that can get the judgement right once does the thinking, and a cheaper tier does the volume.
+`.forge/orchestration.md` defines the tiers and `.forge/model-tiers.md` maps each tier to a model.
+
+| Stage | Tier | Why |
+|---|---|---|
+| 0 Project inception | build-tier | An interview: the owner makes the calls and the thread records them as principles. |
+| 1 Idea | any | Capturing the owner's words needs no judgement. |
+| 2 Grilling for use cases | build-tier | An interview; glossary edits need no design judgement. |
+| 3 High-level design, 5 Detailed design | design-tier | The decisions, the security reasoning and the module contracts are where a wrong call is expensive; this tier never implements. |
+| 4 Requirements approval PR | build-tier (performed by the stage 3 thread itself, or skipped as a no-op) | Mechanical: it cites the owner's approval comment; the tier belongs to the work, not the thread that happens to run it. |
+| 6 Ticket it and queue it | build-tier (a sub-agent of the stage 5 design thread by default) | `to-tickets` against a doc that already carries the design; the tier belongs to the work, not the thread that orchestrates it. |
+| 7 Build and close | build-tier | One slice at a time, scoped tests, self-review, merge. |
+| 7 Threat-model fold-in at the terminal merge | design-tier | `security-docs` never runs below design-tier. |
+| 8 Architecture pass and its triage | design-tier, a fresh thread briefed with the design doc | Judging whether a seam is shallow across several merged slices is design judgement; the fixes it queues are built at build-tier. |
+| Post-merge review pass | review-tier reviewers, orchestrated by a build-tier thread | A real review of every PR merged since the watermark. |
+| Main Health | build-tier | Watching and reporting; design-tier only if a failure needs a root cause the slice owner cannot find. |
+| Read-only sweeps, audits, listings, status checks, ticket housekeeping | mechanical-tier sub-agent | One obviously correct answer per check, and nothing is changed. |

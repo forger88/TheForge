@@ -1,0 +1,15 @@
+{
+  "schema_version": 2,
+  "repository_root": "../..",
+  "toolchain": {
+    "pandoc": {"command": "pandoc", "version": "3.11"},
+    "d2": {"command": "d2", "version": "0.9.0"},
+    "weasyprint": {"command": "weasyprint", "version": "70.0"},
+    "font": "DejaVu Sans"
+  },
+  "reuse_screenshots_by_default": false,
+  "documents": [
+    {"source": "docs/requirements/requirements-specification.md", "outputs": ["pptx"]}
+  ]
+}
+

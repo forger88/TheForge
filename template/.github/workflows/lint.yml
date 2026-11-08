@@ -1,0 +1,31 @@
+# Lint and format check.
+#
+# COST: manual dispatch only. CI minutes are expensive, and the git
+# pre-commit hook (.pre-commit-config.yaml) is the real lint gate, so this
+# workflow exists only to confirm the hook's result on a clean runner when
+# the owner asks. It is not part of the Main Health thread's scheduled pass.
+# No agent dispatches it unless the owner says to (.forge/ci-and-checks.md).
+name: lint
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      # Pinned to a full commit SHA (.forge/code-shape-rules.md, "Pinned
+      # dependencies"). Verify this SHA against the action's v4.2.2 release
+      # before first use, and move it only in its own ticketed PR.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install pre-commit at the pinned version
+        run: |
+          # Replace with the project's dev-requirements install at stage 0,
+          # so the pre-commit version comes from the lock file.
+          python3 -m pip install "pre-commit==4.3.0"
+      - name: Run every hook on every file
+        run: pre-commit run --all-files --show-diff-on-failure

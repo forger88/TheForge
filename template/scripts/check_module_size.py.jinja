@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+"""Enforce the module and function size caps (.forge/code-shape-rules.md, "Module and function size cap").
+
+Usage:
+    check_module_size.py [FILE ...]
+
+Checks every given source file (or, with no arguments, every git-tracked file
+with an extension in SOURCE_EXTENSIONS) against two caps:
+
+- a module is at most MAX_MODULE_LINES lines, counted like `wc -l`;
+- a Python function is at most MAX_FUNCTION_CODE_LINES code lines (blank lines,
+  comments and docstrings excluded; nested functions count toward their parent).
+
+Function caps for other languages are not measured by this script; stage 0 wires
+the project's linter equivalent (for example ESLint's max-lines-per-function).
+
+Both caps render from the `max_module_lines` and `max_function_code_lines`
+answers in `.copier-answers.yml`, which also render the rule's text; change a cap
+there and re-render, never here alone. Vendored skill files under
+`.agents/skills/` are not the project's code to split, so a full run skips them.
+
+`module_size_allowlist.json` lists files and functions already over a cap when
+the cap landed, with their current size. It only shrinks: an entry whose item
+has grown fails, an entry whose item has shrunk without its number being lowered
+fails, and an entry whose item is now under the cap must be removed.
+"""
+
+from __future__ import annotations
+
+import ast
+import io
+import json
+import subprocess
+import sys
+import tokenize
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _git_subprocess import clean_git_env  # noqa: E402
+
+MAX_MODULE_LINES = {{ max_module_lines }}
+MAX_FUNCTION_CODE_LINES = {{ max_function_code_lines }}
+SOURCE_EXTENSIONS = {".py", ".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".vue", ".go", ".rs", ".java", ".kt", ".rb", ".cs"}
+VENDORED_PREFIXES = (".agents/skills/",)
+ALLOWLIST = Path(__file__).with_name("module_size_allowlist.json")
+
+
+def tracked_sources() -> list[Path]:
+    out = subprocess.run(
+        ["git", "ls-files"], capture_output=True, text=True, check=True, env=clean_git_env()
+    ).stdout
+    return [Path(p) for p in out.splitlines() if Path(p).suffix in SOURCE_EXTENSIONS and not p.startswith(VENDORED_PREFIXES)]
+
+
+def code_lines(source: str, node: ast.AST) -> int:
+    """Count lines in node's span that hold a code token other than a docstring."""
+    doc_lines: set[int] = set()
+    for inner in ast.walk(node):
+        body = getattr(inner, "body", None)
+        if isinstance(body, list) and body and isinstance(body[0], ast.Expr):
+            value = body[0].value
+            if isinstance(value, ast.Constant) and isinstance(value.value, str):
+                doc_lines.update(range(body[0].lineno, body[0].end_lineno + 1))
+    lines: set[int] = set()
+    segment = "\n".join(source.splitlines()[node.lineno - 1 : node.end_lineno])
+    skip = {tokenize.COMMENT, tokenize.NL, tokenize.NEWLINE, tokenize.INDENT, tokenize.DEDENT, tokenize.ENDMARKER}
+    for tok in tokenize.generate_tokens(io.StringIO(segment).readline):
+        if tok.type in skip:
+            continue
+        for offset in range(tok.start[0], tok.end[0] + 1):
+            lineno = node.lineno + offset - 1
+            if lineno not in doc_lines:
+                lines.add(lineno)
+    return len(lines)
+
+
+def python_functions(path: Path, source: str) -> dict[str, int]:
+    """Top-level-measured functions: a nested function is counted inside its parent, not separately."""
+    sizes: dict[str, int] = {}
+    tree = ast.parse(source, filename=str(path))
+
+    def visit(node: ast.AST, prefix: str) -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                sizes[f"{path}::{prefix}{child.name}"] = code_lines(source, child)
+            elif isinstance(child, ast.ClassDef):
+                visit(child, f"{prefix}{child.name}.")
+
+    visit(tree, "")
+    return sizes
+
+
+def main(argv: list[str]) -> int:
+    files = [Path(a) for a in argv] if argv else tracked_sources()
+    allow: dict[str, int] = json.loads(ALLOWLIST.read_text()) if ALLOWLIST.exists() else {}
+    measured: dict[str, int] = {}
+    for path in files:
+        if path.suffix not in SOURCE_EXTENSIONS or not path.is_file():
+            continue
+        source = path.read_text(encoding="utf-8", errors="replace")
+        measured[str(path)] = source.count("\n")
+        if path.suffix == ".py":
+            try:
+                measured.update(python_functions(path, source))
+            except SyntaxError:
+                continue
+    errors: list[str] = []
+    for key, size in sorted(measured.items()):
+        cap = MAX_FUNCTION_CODE_LINES if "::" in key else MAX_MODULE_LINES
+        allowed = allow.get(key)
+        if allowed is None and size > cap:
+            errors.append(f"{key}: {size} lines, over the cap of {cap}; split it (new code never gets an allowlist entry)")
+        elif allowed is not None and size > allowed:
+            errors.append(f"{key}: grew to {size} lines, past its allowlisted {allowed}")
+        elif allowed is not None and size <= cap:
+            errors.append(f"{key}: now {size} lines, under the cap; remove its allowlist entry")
+        elif allowed is not None and size < allowed:
+            errors.append(f"{key}: shrank to {size} lines; lower its allowlist entry from {allowed} to {size}")
+    if not argv:
+        # A full run also catches entries for files that no longer exist.
+        for key in sorted(set(allow) - set(measured)):
+            errors.append(f"{key}: allowlisted but not found; remove its entry")
+    for line in errors:
+        print(line, file=sys.stderr)
+    return 1 if errors else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

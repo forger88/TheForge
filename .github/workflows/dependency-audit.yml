@@ -1,0 +1,30 @@
+# Vulnerability audit of the pinned dependency set.
+#
+# COST: manual dispatch only. CI minutes are expensive. The Main Health
+# thread may include this in its scheduled pass; an advisory published
+# against an existing pin can turn it red with no merge behind it, and that
+# is a finding to ticket, never a flake to re-run
+# (.agents/skills/watch-main-ci/SKILL.md, "A dependency-audit step failure
+# is a finding, not a flake").
+name: dependency-audit
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      # Pinned to a full commit SHA; verify before first use (see lint.yml).
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Audit dependencies
+        run: |
+          # Stage 0 replaces this with the project's real audit commands,
+          # for example `pip-audit -r <lock file>` and `npm audit --omit=dev`,
+          # each tool installed at a pinned version.
+          echo "dependency audit not configured yet: set it at stage 0"
+          exit 1

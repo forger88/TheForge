@@ -1,0 +1,46 @@
+# Project initiation checklist
+
+Copier wrote this project's files, and `scripts/bootstrap.py` creates its labels and standing trackers.
+Neither can change the repository's settings or the agent harness's configuration, so the owner works through this list once, right after generating the project.
+This file is the one copy of the checklist. `instructing-agents.md` explains the process around it.
+
+## What the bootstrap script does, and how to confirm it
+
+- [ ] **The bootstrap script has run with a narrow token.**
+  Create a fine-grained personal access token limited to `{{ repo_owner }}/{{ repo_name }}` only, with Issues read and write (GitHub adds Metadata read); nothing else.
+  Then run `GITHUB_TOKEN=<token> python3 scripts/bootstrap.py` (add `--dry-run` first to see what it would do).
+  By default the script refuses a classic token, a fine-grained token that can see other private repositories, or an app installation token that can reach other repositories; pass `--allow-broad-token` to proceed with a warning instead, for the rare case a narrower token cannot be issued.
+- [ ] **Labels exist.**
+  The triage labels (`needs-triage`, `needs-info`, `needs-grilling`, `ready-for-structure`, `ready-for-feature-design`, `ready-for-build`, `ready-for-human`, `wontfix`, `needs-decision`), the categories (`bug`, `enhancement`), `epic`, the queue labels (`queued`, `in-flight`), the routing label `main-health`, the release-note labels (`release:user`, `release:integrator`, `release:internal`, `breaking`) and the parking labels (`hanging`, `future`, `deferred-arch-finding`).
+  Confirm with `gh label list --repo {{ repo_owner }}/{{ repo_name }}`.
+- [ ] **The five standing trackers exist and their numbers are recorded** in `.copier-answers.yml` as `post_merge_review_tracker`, `deferred_ideas_epic`, `hanging_epic`, `arch_findings_epic` and `local_full_suite_evidence_tracker`.
+- [ ] **The numbers are rendered into the rule files.**
+  Run `copier recopy --trust --skip-tasks --defaults --overwrite` once, straight after bootstrap and before any local edits, then commit the result.
+- [ ] **Workflows are manual-dispatch only.**
+  Every file under `.github/workflows/` triggers on `workflow_dispatch` alone; the bootstrap script checks the local copies.
+  Read them back after the first push and confirm none has a push, pull-request or schedule trigger.
+
+## Repository settings, set by hand
+
+- [ ] **Delete head branches on merge:** `gh repo edit {{ repo_owner }}/{{ repo_name }} --delete-branch-on-merge`
+- [ ] **Vulnerability alerts on, advisory only:** `gh api -X PUT repos/{{ repo_owner }}/{{ repo_name }}/vulnerability-alerts`
+  Leave automated security-update PRs and version-update PRs off: moving a pinned dependency is its own ticketed, reviewed change; file a ticket if you want either turned on.
+- [ ] **Branch protection and merge method:** decide whether to protect `main` and which merge methods to allow.
+  Whatever you set must still let a build thread merge its own PR once its review gate is clear, since agents self-merge.
+- [ ] **Organisation defaults:** check the Actions settings page for any default workflows your organisation applies.
+- [ ] **Secrets and credentials:** add any keys the project needs through the repository's or harness's secret store.
+  They never go in the repository, and setting them is always a manual owner step.
+- [ ] **Revoke the bootstrap token** once the script has run.
+
+## Harness follow-ups
+
+- [ ] Add the repository to the coordinator's configured repository list.
+- [ ] Paste the text between the markers in `docs/agents/coordinator-core-snippet.md` into the harness's project-level instructions, after the owner's scope section and an empty `## Coordinator notes` zone, then start the coordinator session; it loads `.forge/coordinator-core.md` itself and runs its own self-check. Re-paste whenever the snippet changes (`python3 scripts/check_coordinator_core.py drift <file holding the live instructions>` reports drift).
+- [ ] Install the harness's GitHub App (or equivalent) on this repository only, so agent sessions can push branches and open PRs.
+- [ ] Stand up the Main Health thread (`.agents/skills/watch-main-ci/SKILL.md`): it schedules the post-merge review pass, the queue sweep and, once the project writes it, the local full-suite check.
+- [ ] Map the capability tiers to models in `.forge/model-tiers.md` if the defaults do not suit the harness, recording the change in `docs/forge-overrides.md`.
+
+## Then: stage 0
+
+- [ ] Ask the agents to run stage 0 (`.forge/feature-pipeline.md`): the grilling interview that seeds `docs/principles.md`, settles the real tools behind the guard stubs (lint, dead code, size caps, dependency pins, dependency audit), sets the coverage floor from a measured baseline, and the setup, test and lint commands, and offers the `impeccable` setup if the project has a user interface.
+  `.devcontainer/devcontainer.json` already pins its base image to a digest; when stage 0 replaces a placeholder image, keep it pinned to a digest too (`.forge/code-shape-rules.md`, "Pinned dependencies").

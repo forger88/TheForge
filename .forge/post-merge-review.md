@@ -1,0 +1,72 @@
+# The post-merge review pass
+
+Instructions here are duplicated, pithily, into `coordinator-core.md` for agent harness that cannot load and handle this instructions file directly.
+TheForge's coordinator-core ADR records why that file exists and the constraints that must survive every edit to it.
+A change here updates `.forge/coordinator-core.md` in the same change.
+TheForge's `lock` check fails until the core section citing this one is re-read and the lock refreshed.
+
+The post-merge review is this project's second review and its only independent one.
+Higher-tier reviewers, never the builder, re-review every PR merged to `main` since a watermark.
+They look for what a per-PR review structurally cannot see: cross-PR interactions, migrations, resource exhaustion that only shows up under real execution, and guard tests that cannot fail.
+
+The procedure lives in `.agents/skills/post-merge-review/SKILL.md`; this file states the rules around it.
+
+## The tracker
+
+The post-merge review tracker #60 is a standing tracker issue.
+It holds the reviews still to be done and the reviews done (SDLC-095).
+When a PR merges, the agent that merged it, or for an owner's merge the agent that opened it, posts a pending note on the tracker as a comment, and a run's archive comment lists the notes it covered (`.agents/skills/post-merge-review/SKILL.md`, "Pending reviews").
+Its body holds only the watermark, a pointer to the procedure, and the run log index.
+Each run's detail goes in its own archive comment on the tracker, never in the body.
+The tracker never closes, and no PR or commit message may put a closing keyword next to its number (`.forge/tickets-and-branches.md`, "Closing keywords").
+
+## Cadence
+
+A pass runs after roughly every 10 PRs merged to `main`, and at least every 2 to 3 days of active development, whichever comes first.
+The Main Health thread runs it on its own scheduled routine (`.agents/skills/watch-main-ci/SKILL.md`), skipping a firing when nothing has merged since the watermark.
+A feature's own post-merge review pass ticket, filed at pipeline stage 6, also triggers a pass once the feature's terminal slices have merged.
+The standing cadence is a safety net under those tickets, not a substitute for them.
+
+## Who runs it
+
+The Main Health thread orchestrates the pass at build-tier.
+The reviewing itself is done by review-tier sub-agents, one per subsystem batch plus one for the window's merge-written text, each in its own private worktree.
+Each sub-agent reports which model it actually ran on, and the run's archive comment records every batch's performer and tier.
+The pass is file-only: it opens issues and never opens fix PRs.
+
+## The security axis
+
+Every pass also reviews every surviving line through STRIDE (spoofing, tampering, repudiation, information disclosure, denial of service, elevation of privilege), against `docs/security/threat-model.md` and the other security docs.
+For each surviving line it asks whether it added attack surface, weakened a control a security doc names, made a security-doc statement untrue, or skipped the security part of its design.
+The reviewer finds gaps and does not fill them.
+When the code is the problem, the finding is graded like any other.
+When only a security doc is out of date, the finding is a Should whose ticket points at `security-docs`' reconcile mode.
+Each reviewer's brief names the security axis explicitly; a brief that leaves it implied gets a review that skips security.
+
+Some text reaches `main` without ever being a line in a file's diff: a PR's title and body, and the commit messages a squash or merge writes.
+The security axis also covers this merge-written text for every PR in the window, asking whether any of it disclosed something it shouldn't have, or carried a closing keyword next to the wrong issue or PR.
+A finding here is graded like any other; fixing text already on `main` is the project's own call (editing a PR body, a history rewrite) and stays outside this file-only pass.
+
+## Findings
+
+Findings are classified Must, Should, Could or Won't (`.agents/skills/code-review/SKILL.md`, "Triaging findings (MoSCoW)").
+Must and Should findings are fixed; Could and Won't findings are recorded as one-liners in the run's archive comment and get no ticket.
+A run files its Must findings each in a ticket of their own, so a Must never waits inside a bundle behind lower-severity work.
+It groups its Should findings by file or feature area into one ticket per theme.
+A finding that is a genuine open design question, with no fix sketch, is flagged to the owner as its own `needs-decision` ticket; the owner decides whether it is addressed or parked as a `deferred-arch-finding` under the architecture-findings epic #343 (SDLC-039).
+When two or more filed findings share a shape, the run asks the owner "is there a principle here?".
+
+## A repeat offender becomes a self-review pattern
+
+When a run finds the same kind of defect earlier runs already found, the pattern is added to the self-review checklist (`.agents/skills/self-review/SKILL.md`) in the same follow-up that files the findings.
+The builder's own review then catches it next time, instead of this pass catching it again.
+
+## Watermark discipline
+
+A run that did not cover its whole window does not advance the watermark.
+It still appends a run log row, marked partial, so the gap stays visible.
+
+## Mutation sampling
+
+Every fifth pass may also sample a few modules with a mutation-testing tool to find tests that kill no mutants.
+It is an audit, never a gate, and it runs only with the owner's explicit go-ahead on that pass.

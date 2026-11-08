@@ -1,0 +1,45 @@
+---
+name: coordinator
+description: "The coordinator's look-up procedures: how to brief a grilling thread, what the coordinator-notes check reports, and how to compose project instructions across several member repos. The coordinator's rules themselves are in .forge/coordinator-core.md. Use when acting as this project's coordinator session and one of those situations arises."
+disable-model-invocation: true
+---
+
+# Coordinator
+
+The authoritative text of the coordinator's rules is `.forge/coordinator-core.md`; this file holds only look-up procedures.
+Every rule the coordinator acts on routinely is in that file, which a coordinator session loads at the start of each session; read this one only when a situation below arises.
+TheForge's coordinator-core ADR records why the core file exists and the constraints that must survive every edit to it.
+
+## Boot routine
+
+A coordinator session boots by following the start-of-session self-check in `.forge/coordinator-core.md`; that file is the whole routine.
+
+This repository's own working folder is `the harness's shared project folder`.
+
+## Briefing a grilling thread
+
+- Every grilling thread (feature-pipeline stage 2, stage 0's interview, a `needs-grilling` ticket, or any other interview the owner asks for) runs `grill-me` (`.agents/skills/grill-me/SKILL.md`, read directly; it may not be surfaced through the harness's skill listing).
+- `grill-me` is this repo's designated grilling entry point: it wraps `grilling` and adds the feature-pipeline integration (checklist ticks, issue and glossary writes).
+  Don't send a grill thread to `grill-with-docs` (`.agents/skills/grill-with-docs/SKILL.md`) instead.
+  Both come from the same upstream skill set (`.agents/skills/THIRD_PARTY.md`), so "the upstream grilling skill" doesn't by itself pick between them, but `grill-with-docs` bundles ADR and glossary drafting into the interview, and `.forge/feature-pipeline.md` routes ADRs to stage 3, not grilling: it's a confusable, wrong fit here.
+- When handing a job to a grill thread, the brief names `grill-me` explicitly, by path, every time, never just "grill" or "the grilling skill".
+
+## Preserving coordinator notes
+
+The project instructions hold a zone headed `## Coordinator notes` (created as `## Coordinator notes (owner-requested, preserved on update)`; the check recognises any heading with that prefix), between the owner's own scope section and the sections the coordinator-core snippet owns.
+It holds the notes the coordinator records there at the owner's request, one dated bullet per note.
+The notes live only in the project instructions: no repo file backs them, and nothing about them is committed.
+
+What `python3 scripts/check_coordinator_core.py notes <live> <new>` reports:
+
+- It passes when the zone, heading line included, is unchanged and the new text fits the host's limit; otherwise it prints the problem and exits 1.
+- A live text with no recognisable zone fails too; if it has had a zone before, ask the owner which section holds the notes.
+- A heading wording change is a difference like any other, and a second heading with that prefix is refused.
+- A thread that cannot edit the project settings hands the text to the coordinator or the owner.
+
+## Composing the project instructions
+
+In a multi-member project, the project instructions carry the coordinator-core snippet (`docs/agents/coordinator-core-snippet.md`) from the lead repo, and the drift check in the start-of-session self-check audits it.
+The lead is named on the owner's `Lead repo:` line; with none, ask the owner.
+Each member's own skills and rules govern work in that member; the coordinator-core file it loads is the lead's.
+If a member's coordinator-scoped rules contradict the lead's, file one `needs-decision` ticket in the lead repo unless one is already open for that member and section, and follow the lead's text meanwhile.

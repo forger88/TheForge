@@ -1,0 +1,13 @@
+// Placeholder development container. Stage 0 replaces the image with the
+// project's real toolchain, keeping it pinned by digest the same way.
+// A version or digest move is its own ticketed PR, like any other pin
+// (.forge/code-shape-rules.md, "Pinned dependencies").
+// Any feature added under "features" also gets a digest-pinned entry in
+// devcontainer-lock.json.
+{
+  "name": "TheForge",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04@sha256:d94c97dd9cacf183d0a6fd12a8e87b526e9e928307674ae9c94139139c0c6eae",
+  "features": {},
+  "postCreateCommand": "pip install pre-commit==4.3.0 \u0026\u0026 pre-commit install --install-hooks",
+  "customizations": {}
+}

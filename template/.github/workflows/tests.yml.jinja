@@ -1,0 +1,32 @@
+# Full test suite with its coverage floor.
+#
+# COST: manual dispatch only. CI minutes are expensive. The Main Health
+# thread dispatches this on main on the owner's schedule (twice a day by
+# default), and only when something has merged since the last pass; between
+# passes, its local full-suite stand-in covers main. Build threads run only
+# the tests near their change and never dispatch this
+# (.forge/ci-and-checks.md, "Don't manually trigger CI runs").
+name: tests
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  suite:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      # Pinned to a full commit SHA; verify before first use (see lint.yml).
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      # Stage 0 replaces these two placeholder steps with the project's real
+      # toolchain setup (each action pinned by SHA, each image by digest).
+      - name: Install dependencies
+        run: {{ setup_command | tojson }}
+      - name: Run the full suite under its coverage floor
+        # The floor ({{ coverage_floor }}%, the coverage_floor answer) lives in the suite's
+        # own test configuration, so it applies identically here and in the
+        # local full-suite stand-in. It only ratchets up.
+        run: {{ test_command | tojson }}

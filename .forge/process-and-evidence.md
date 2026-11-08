@@ -1,0 +1,102 @@
+# Process changes and evidence
+
+Instructions here are duplicated, pithily, into `coordinator-core.md` for agent harness that cannot load and handle this instructions file directly.
+TheForge's coordinator-core ADR records why that file exists and the constraints that must survive every edit to it.
+A change here updates `.forge/coordinator-core.md` in the same change.
+TheForge's `lock` check fails until the core section citing this one is re-read and the lock refreshed.
+
+## Process changes follow the lifecycle doc (Never)
+
+`docs/software-development-lifecycle.md` is the originating authority for process, and its numbered `SDLC-` statements are the owner's.
+Only the owner approves a change to the wording or meaning of an SDLC statement, explicitly and against the exact wording, and that change lands first as its own PR to the document.
+Once the owner's approval of the exact wording is recorded on that lifecycle-doc PR, the agent that opened it merges it and posts the merge's pending post-merge-review note on the tracker, in the form `.agents/skills/post-merge-review/SKILL.md`, "Pending reviews", gives.
+
+A change to `CLAUDE.md`, a `.forge/` file, the harness's project instructions, a skill or `docs/agents/` is reviewed against the numbered statements it touches, the way code is reviewed against the requirements specification.
+Its PR names, on its `Process:` line, the statements it traces to and any others it affects.
+
+A change that introduces or changes a policy with an engineering-management effect (quality assurance, configuration management, security risk management and the like) that no numbered statement explicitly justifies and directs needs the SDLC document itself to change first.
+It waits for the owner to approve that SDLC change.
+The document's surrounding prose is context for the statements, not direction in itself.
+Any doubt is raised as an open question, tracked with a `needs-decision` label on the PR's ticket or a new ticket linked from it.
+These are not new engineering-management policies, and need no SDLC change: a clearer or reordered step, a procedural refinement of how an existing statement is met, a new check or guard that enforces an existing statement, and a fix that makes a rule match a statement it already traces to.
+
+Everything else self-merges once the review gate is clear: a typo, a link fix, reformatting, a clarification, or a refinement of implementation detail that aligns with the statements as they stand.
+So does a PR that lands owner-approved SDLC wording, when its diff is verbatim that wording and the approval is quoted in the PR.
+That waiver covers only the second approval request, not the review gate itself: it does not waive, narrow, or stand in for the Standards/Spec sub-agent review or the mandatory self-review step every full-gate PR still owes (`.forge/review-gate.md`).
+`.forge/review-gate.md`'s own "An exemption must be quotable, or it does not exist" already says this generally, so no sentence here grants, or was ever meant to grant, an exemption from Standards/Spec review or self-review.
+When a skill or instruction appears to disagree with a statement, or a change might alter a statement's meaning, flag it to the owner and let the document stand until the owner decides; the threshold for flagging is low.
+
+## What needs the owner's approval before a merge (Never)
+
+Unless the owner directs otherwise for a particular change, a change needs the owner's approval before it merges to `main` only for these (SDLC-117):
+
+- the wording of a requirement: new, reworded or removed (`.forge/requirements-driven-changes.md`);
+- the wording or meaning of an SDLC statement (above);
+- the wording of a principle in `docs/principles.md`: new, reworded or removed (SDLC-068);
+- any other approval a numbered SDLC statement requires for that change, such as lowering a coverage floor (SDLC-054);
+- raising a CI timeout, because it costs CI minutes (SDLC-059's cost control).
+
+Every other change may merge once its review gate is clear, with no approval request (a design doc, an ADR, a requirement's status, `CONTEXT.md`, a guide, a skill, an instruction file); whether the agent or the owner performs the merge follows the route the owner chose for the work, so an `implement`-only build or an owner's "don't merge" still leaves the merge to the owner.
+Asking the owner to approve a change this list does not name is itself a defect, because it stalls the queue for nothing.
+
+This list governs merging changes to the repo only.
+It does not cover the owner's other decisions, which keep their own rules: parking an accepted gap or deferring an idea (SDLC-019, SDLC-020), accepting a risk (SDLC-107), a mutation-testing go-ahead (SDLC-058), CI outside its schedule (SDLC-059), a release (SDLC-074), and any paid or external call a project rule reserves to the owner.
+It relaxes no review: a process change is still reviewed against this document's statements (SDLC-005), and one that needs a new statement still waits for it.
+
+Once the approval a change needs is recorded where the approved thing lives, the agent merges it (SDLC-043).
+A recorded approval is the owner's own words in a post, a comment or chat, quoted; an option the owner chose on a decision card; or an explicit, unambiguous direction from the owner, such as "merge it" on the PR from the owner's own account.
+
+## Evidence: where each record lives (Default)
+
+Every commitment in the lifecycle document leaves evidence where a later reader can check it.
+This table is where each kind of record lives.
+
+The `<context>` slot in a review record is `clean` when the performer started with no prior history on the ticket (a fresh sub-agent, or a design-exit or architecture-pass thread that did not build the diff) and `builder's own` for ordinary self-review.
+`/code-review`'s two axes are always `clean`, because they run as fresh sub-agents by construction.
+
+| Commitment | Record | Where it lives |
+|---|---|---|
+| Who reviewed, at which tier | `<review> — <performer> — <tier> [— model as reported] — <context>` | The PR's `Review:` line; a design-exit record in the ticket's Structure guidance; an architecture pass's record at the top of its triage comment; a post-merge review run's record in its archive comment |
+| A local full-suite run's results | One comment per full run on the local full-suite evidence tracker #344, carrying a machine-readable marker (the commit it covered, when it finished, and the aggregate result) plus a per-step table; a per-check commit status and an aggregate status are posted too wherever the environment's token can write them, but neither is required | The local full-suite evidence tracker #344 (the canonical record, readable in every environment); the hosting platform's commit statuses where the environment allows posting them |
+| Tests run, coverage held | Scoped test commands, pass/fail counts, per-module coverage before and after | The PR's `Tests:` line |
+| Pre-release sweep outcome and owner decisions | The sweep report, and a quoted comment per gap that is not simply a missed ticket | The release ticket |
+| Owner approvals | The owner's exact words, or for a decision card the chosen option plus any free text | Where the approved thing lives (below) |
+| A scheduled pass ran | Varies by pass (below) | Varies by pass |
+| Dependencies pinned | Exact pins in the manifest, lock, image and action files, plus a passing pin guard | The repo's pin files |
+| Deployment configuration versioned | The repo's own configuration files | This repo |
+| Known risks recorded and decided | Security risks in the threat model's known-gaps and accepted-risks sections; other risks as `needs-decision` tickets with a `Risk:` line | The threat model; the tracker |
+
+Owner approvals are always the owner's exact words, quoted, or for a decision card `Owner chose "<option label>" on decision card <id>, <date>` plus any free text, never a bare link to the card.
+
+| Approval kind | Where the quote goes |
+|---|---|
+| Requirement wording | The spec-only PR body |
+| SDLC wording | The lifecycle-doc PR body |
+| Principle wording | The principles docs PR body |
+| Parking an accepted gap | An issue comment |
+| Lowering a coverage floor | The PR body |
+| Mutation-testing go-ahead | The post-merge review run's archive comment |
+| Raising a timeout | The PR body |
+| A Default departure the owner called for | The PR's departure note |
+| Scope check-in (generalizing an instruction) | A comment on the ticket |
+| Release version and per-gap sweep decisions | The release ticket |
+| A `needs-decision` outcome | A comment on the ticket |
+| A merge or tag reserved for the owner | The owner's own act is the record |
+
+| Scheduled pass | Evidence when it runs | Absence check |
+|---|---|---|
+| Post-merge review | Archive comment and run log row on the tracker #60 | `queue-sweep` check 11 |
+| Mutation sample | "not due" or "no owner answer" in the archive comment | None; a skipped firing correctly leaves no record |
+| Scheduled CI dispatch | The CI runs themselves | None needed |
+| Local full-suite run | A marked comment on the local full-suite evidence tracker #344; commit statuses too where the environment allows posting them | `queue-sweep` check 11 |
+| Threat-model reconcile before a release | The "Last reconciled" line in `docs/security/threat-model.md` | None |
+
+A scheduled assurance pass that leaves no evidence is taken as a pass that did not run.
+
+## Releases
+
+A release is an annotated tag on `main` with its section in the release notes.
+Only the owner decides when to release, and tags and publishes it; agents draft the notes and the commands and never push a tag.
+Release notes are drafted with the `release-notes` skill, which SDLC-112 then makes mandatory to actually use rather than a hand-rolled substitute.
+Before a release's notes are drafted, the queue sweep has run, the owner has decided each gap it reported, and the threat model has been reconciled against `main`.
+Before the tag is chosen, the agent asks the owner whether the Main Health thread should run a fresh local full-suite pass first, since `green` can lag `main`; the owner decides.

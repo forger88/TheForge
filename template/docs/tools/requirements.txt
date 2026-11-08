@@ -1,0 +1,22 @@
+# Complete renderer lock. Keep direct and transitive versions fixed because
+# Pango/CSS/font changes can alter pagination even when WeasyPrint itself does not.
+weasyprint==70.0
+
+# render_diagrams.py's `render_svg_to_png`: an SVG-export-then-rasterize path
+# for every diagram renderer, instead of a diagram tool's own direct
+# image-export step, which typically shells out to a headless browser via its
+# own driver download -- unusable in a network-restricted sandbox and an
+# unneeded dependency anywhere else.
+vl-convert-python==1.9.0.post1
+pydyf==0.12.1
+cffi==2.1.1
+pycparser==3.0
+tinyhtml5==2.1.0
+tinycss2==1.5.1
+cssselect2==0.10.1
+webencodings==0.6.1
+pyphen==0.18.1
+pillow==12.3.0
+fonttools[woff]==4.65.0
+brotli==1.2.0
+zopfli==0.4.3
