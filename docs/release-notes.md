@@ -9,7 +9,7 @@ skill (Enhancements, Bug fixes, Known issues and For integrators, with
 notes as its tag message, per `CLAUDE.md`'s "Tagging a release of this
 repository."
 
-## v0.2.0 (date TBD — set when tagged)
+## v0.2.0 (2026-11-15)
 
 A process-hardening release: downstream repository owners get a review gate that no longer lets an axis run silently un-reviewed, a coordinator that can no longer be satisfied by a stale or cached instruction copy, a release-notes process corrected against its own mistakes, PRs generated to the template's own shape, the requirements specification checked against the skill that sets it, a tightened SDLC document, a one-call worktree setup, a more conversational stage 0 with three more seeded principles, and three shipped bugs fixed (two of them documented as known issues at v0.1.0); several accepted risks were also re-homed, re-verified or newly classified.
 
