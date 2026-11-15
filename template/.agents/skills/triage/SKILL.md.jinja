@@ -123,7 +123,7 @@ Show counts and a one-line summary per item. Let the maintainer pick.
      - **Rejected (bug)**: give a polite explanation, then close.
      - **Rejected (enhancement)**: write to `.out-of-scope/`, link to it from a comment, then close ([OUT-OF-SCOPE.md](OUT-OF-SCOPE.md)).
    - `needs-triage`: apply the role. Optional comment if there's partial progress.
-   - **The issue records a risk, not a defect or a feature** (SDLC-107): a security risk goes through `security-docs`' delta mode into `docs/security/threat-model.md`, keeping the ticket open only if it names a real open gap; a non-security risk becomes a ticket whose body opens with a `Risk:` line, labelled `needs-decision`. The owner then either accepts it (→ `hanging` under the hanging epic {{ hanging_ref }}, with the owner's recorded words quoted on the ticket) or asks for it to be mitigated (→ `ready-for-build`/`ready-for-structure` via the routing check above).
+   - **The issue records a risk, not a defect or a feature** (SDLC-107): a security risk goes through `security-docs`' delta mode into `docs/security/threat-model.md`, keeping the ticket open only if it names a real open gap; a non-security risk becomes a ticket whose body opens with a `Risk:` line, labelled `needs-decision`. The owner then either accepts it (→ `deferred-accepted-risk` under the hanging epic {{ hanging_ref }}, with the owner's recorded words quoted on the ticket) or asks for it to be mitigated (→ `ready-for-build`/`ready-for-structure` via the routing check above).
 
 ## Quick state override
 

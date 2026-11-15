@@ -40,8 +40,9 @@ def _make_raw_clone_shape(tmp: Path) -> Path:
 
 
 class ChecksNotRawClone(unittest.TestCase):
-    """The guard test: dropping the remote check, or the copier.yml/template/
-    presence check, must go red here."""
+    """The guard test: dropping the remote check, the copier.yml/template/
+    presence check, or restoring the removed answers-file exemption
+    (ADR-0004's Amendment, ADR-0009), must go red here."""
 
     def test_a_raw_clone_shape_with_no_forge_remote_fails(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_str:
@@ -101,13 +102,26 @@ class ChecksNotRawClone(unittest.TestCase):
             result = _run_in(repo)
             self.assertEqual(result.returncode, 0)
 
-    def test_an_answers_file_on_disk_passes_even_with_both_files_present(self) -> None:
-        """Defensive case documented in the script: a real render already ran
-        Copier, so an .copier-answers.yml means this is not a raw copy, even
-        if some future layout change left copier.yml/template/ at the root too."""
+    def test_an_answers_file_does_not_exempt_a_raw_copy(self) -> None:
+        """A root .copier-answers.yml is not evidence of a real render
+        (ADR-0009): this repository commits one at root, so a raw copy of
+        root is byte-identical, answers file included. An answers file,
+        even one whose _src_path names this repository, must not exempt a
+        tree with no qualifying remote."""
         with tempfile.TemporaryDirectory() as tmp_str:
             repo = _make_raw_clone_shape(Path(tmp_str))
-            (repo / ".copier-answers.yml").write_text("_src_path: somewhere\n")
+            (repo / ".copier-answers.yml").write_text("_src_path: https://github.com/forger88/TheForgeStaging.git\n")
+            result = _run_in(repo)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("raw copy of TheForge", result.stdout + result.stderr)
+
+    def test_roots_own_shape_passes_on_its_remote(self) -> None:
+        """The same answers file, but with a qualifying remote: this is this
+        repository's own legitimate self-retrofit shape, and must pass."""
+        with tempfile.TemporaryDirectory() as tmp_str:
+            repo = _make_raw_clone_shape(Path(tmp_str))
+            (repo / ".copier-answers.yml").write_text("_src_path: https://github.com/forger88/TheForgeStaging.git\n")
+            _git("remote", "add", "origin", "https://github.com/forger88/TheForgeStaging.git", cwd=repo)
             result = _run_in(repo)
             self.assertEqual(result.returncode, 0)
 

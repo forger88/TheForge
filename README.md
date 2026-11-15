@@ -12,6 +12,7 @@ What a generated project gets:
 - **Capability tiers.** Work is matched to the judgement it needs (design-tier, review-tier, build-tier, mechanical-tier), not to a model name, so the process runs on any agent harness.
 - **A software development lifecycle document** with numbered `SDLC-NNN` statements the owner controls, and the skills, rules and reference docs that implement it.
 - **Mechanical guards** shipped as pre-commit hooks: branch names, module and function size caps, a dead-code ratchet, a no-snapshot-test ban and a one-sentence-per-line check for the forge-owned rule files.
+- **A document/diagram build** (opt-in, via the `doc-build-setup` skill): a manifest-driven pipeline (`docs/tools/document_build.py`, `docs/tools/document-build.json`) that renders Markdown sources, with inline D2 and Mermaid diagrams, to `.pdf` and `.pptx`, plus a `workflow_dispatch`-only CI job to build them.
 
 ## Using it
 
@@ -45,7 +46,21 @@ copier copy --trust --overwrite gh:forger88/TheForge .
 There's no shortcut around this: Copier has no separate "adopt" mode, and hand-writing the resulting `.copier-answers.yml` instead of letting this run produce it is unsupported by Copier itself and breaks the diff a later `copier update` relies on.
 
 `copier.yml`'s `_skip_if_exists` list protects a project's own project-owned files — `CLAUDE.md`, `AGENTS.md`, `CONTEXT.md`, `docs/principles.md`, `docs/decisions-log.md`, `docs/forge-overrides.md`, `docs/agents/lessons.md`, `docs/agents/operational-constants.md`, `docs/security/threat-model.md`, `docs/requirements/requirements-specification.md`, `docs/adr/README.md`, `docs/tools/document-build.json` and `docs/development/documentation-build.md` — by writing each only if it's missing and never touching it again once it exists.
-`CLAUDE.md` and `AGENTS.md` are the one case that still needs hand attention afterwards: since they're already present, Copier leaves their existing content as-is rather than merging anything into it, so rewrite each by hand to end with the forge entry point import and keep only what's genuinely specific to that project — everything the imported forge files already say can come out.
+`CLAUDE.md` and `AGENTS.md` are the one case that still needs hand attention afterwards: since they're already present, Copier leaves their existing content as-is rather than merging anything into it, so rewrite each by hand to end with the forge entry point import and keep only what's genuinely specific to that project — everything the imported forge files already say can come out. Concretely, each file ends with a short project-specific intro followed by exactly this import line:
+
+```markdown
+# Working on <project>
+
+<a short paragraph on what's specific to this project>
+
+@.forge/entrypoint.md
+
+## This project's own rules
+
+<whatever is genuinely specific to this project>
+```
+
+The `@.forge/entrypoint.md` line is the forge entry point import itself: it is what `copier update` and the `forge-entrypoint` pre-commit hook check for, so it must appear verbatim, on its own line, in both `CLAUDE.md` and `AGENTS.md`.
 
 Every other file the template ships (skills, CI workflows, pre-commit hooks, the rest of `docs/`) is overwritten outright: `--overwrite` means a file that already exists and differs from what the template would generate is replaced with no prompt and no conflict markers, the same as a brand-new file. Run this on a fresh branch so the only review is afterwards, with `git diff` against the branch's starting point, deciding file by file whether to keep the forge version `copier copy` just wrote or `git restore` a deliberate local difference it overwrote. For a repository with a lot of existing process, that resulting diff is usually easier to land as several smaller, sequenced pull requests than as one. `--trust` also runs `scripts/bootstrap.py --from-copier` against the existing repository as part of this same command, not only on a brand-new one. The full procedure behind this section — every precondition, reconciling the project's own existing tracker issues so bootstrap reuses them instead of creating duplicates, and the sequenced-landing order — is `template/.agents/skills/retrofit-existing-project/SKILL.md`. Once it's in, keep pulling later improvements the same way a freshly generated project does — see "Where to start in a generated project" below for the skill that does this.
 

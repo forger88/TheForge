@@ -19,7 +19,7 @@ Call it directly only when starting or queueing a feature outside those two path
 ## Stage 0: project inception (once per repo)
 
 Stage 0 runs once per repo, not per feature, so it has no line on the checklist below.
-Its record is `docs/principles.md` on `origin/main` holding at least one owner-confirmed principle beyond the forge-seeded one (the generated skeleton's "No principles recorded yet" heading means stage 0 has not run).
+Its record is `docs/principles.md` on `origin/main` holding at least one owner-confirmed principle beyond the forge-seeded ones (the generated skeleton's "No principles recorded yet" heading means stage 0 has not run).
 
 **Check, at the start of job (a):** if stage 0 has not run, don't start the feature's checklist yet.
 Put a decision card to the owner, "Run stage 0 (project inception) before this feature?", with two options: "Run stage 0 now" (recommended) and "Start the feature without it".
@@ -93,7 +93,7 @@ A retry after any partial failure, or a second direct or retrofit run of this jo
    Closing this ticket requires the pass's findings to be *filed* per the bundling rule (`.forge/post-merge-review.md`, "Findings"), not fixed.
    Note in the body that closing the tracker itself is a separate, later gate ("Closing the tracker" below) that waits on the Must findings' fix PRs actually merging.
 2. **`Stage 8 architecture pass for <feature>`**, blocked by the post-merge review pass ticket above.
-   Body: run `improve-codebase-architecture` scoped to the files the feature's design doc's slices named or touched, never the whole codebase, including a check against the `impeccable` skill for drift from stage 3 and 5's UI check for any user interface in that scope.
+   Body: run `improve-codebase-architecture` scoped to the files the feature's design doc's slices named or touched, never the whole codebase, including its shared-idiom check against the design doc's shared-idioms table and a check against the `impeccable` skill for drift from stage 3 and 5's UI check for any user interface in that scope.
    Then triage every finding per `.forge/feature-pipeline.md`'s stage 8: Strong → fix now; rejected with a load-bearing reason → ADR; a finding worth exploring → a `needs-decision` ticket; everything else → a `deferred-arch-finding` issue under the architecture-findings epic {{ arch_ref }}.
    Post the triage on the feature issue, including the same-shape "is there a principle here?" check.
    Note in the body **Route: a fresh design-tier thread, briefed with the design doc** (design-tier judgement on code that's already merged, not a slice build).

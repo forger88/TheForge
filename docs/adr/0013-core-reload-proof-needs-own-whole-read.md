@@ -1,6 +1,6 @@
 # ADR-0013: The coordinator-core reload proof needs the coordinator's own whole read
 
-**Status:** accepted; supersedes ADR-0012's constraint 4
+**Status:** accepted; supersedes ADR-0012's constraint 4; itself superseded by ADR-0014
 
 ## Context
 

@@ -66,12 +66,22 @@ PATTERNS = {
     "pytest -p plugin registration": re.compile(rf"-p\s+{_SNAPSHOT_PACKAGES}\b", re.I),
 }
 # These files name a dependency inside a quoted string: a PEP 508 entry in pyproject.toml or
-# setup.py's extras_require, an ini-quoted Pipfile entry, a lock file's `name = "..."`, a
-# Pipfile.lock key. Only these, because a quoted package name in source code is not a
-# dependency. setup.cfg is deliberately not here: it quotes nothing, so this pattern never
-# matches it (confirmed by mutation) — SETUP_CFG_DEPENDENCY below is its real pattern.
-QUOTED_DEPENDENCY_FILES = {"pyproject.toml", "setup.py", "uv.lock", "poetry.lock", "pdm.lock", "Pipfile", "Pipfile.lock"}
+# setup.py's extras_require, an ini-quoted Pipfile entry, a Pipfile.lock key. Only these,
+# because a quoted package name in source code is not a dependency. setup.cfg is deliberately
+# not here: it quotes nothing, so this pattern never matches it (confirmed by mutation) --
+# SETUP_CFG_DEPENDENCY below is its real pattern. The TOML lock files (uv.lock, poetry.lock,
+# pdm.lock) are deliberately not here either: see TOML_LOCK_DEPENDENCY below, which matches
+# only a package's own canonical `name = "..."` line, not this pattern's broader match.
+QUOTED_DEPENDENCY_FILES = {"pyproject.toml", "setup.py", "Pipfile", "Pipfile.lock"}
 QUOTED_DEPENDENCY = re.compile(rf"[\"']{_SNAPSHOT_PACKAGES}\s*([\[(=<>~!;@\"']|$)", re.M | re.I)
+# A TOML lock file records each resolved package's own extras under `[package.extras]` as
+# e.g. `testing = ["pytest-regressions", ...]` -- another package's *optional* test
+# dependency, quoted the same way QUOTED_DEPENDENCY would match, but never installed unless
+# something in the lock actually resolved it. Only a package's own `name = "..."` line names
+# what this project actually has locked, so lock files get this narrower pattern instead of
+# QUOTED_DEPENDENCY.
+TOML_LOCK_FILES = {"uv.lock", "poetry.lock", "pdm.lock"}
+TOML_LOCK_DEPENDENCY = re.compile(rf'^name\s*=\s*"{_SNAPSHOT_PACKAGES}"', re.M | re.I)
 # setup.cfg's ini values aren't quoted, and a dependency can sit on the same line as its
 # `key =`, not only on its own continuation line (which "snapshot library requirement" above
 # already catches): `install_requires = syrupy==4.9.1`, or several entries on one line
@@ -124,6 +134,8 @@ def main(argv: list[str]) -> int:
         patterns = dict(PATTERNS)
         if path.name in QUOTED_DEPENDENCY_FILES:
             patterns["snapshot library dependency"] = QUOTED_DEPENDENCY
+        if path.name in TOML_LOCK_FILES:
+            patterns["snapshot library dependency"] = TOML_LOCK_DEPENDENCY
         if path.name in SETUP_CFG_FILES:
             patterns["snapshot library dependency (setup.cfg)"] = SETUP_CFG_DEPENDENCY
         if path.name in QUOTED_JS_DEPENDENCY_FILES:

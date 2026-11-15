@@ -133,6 +133,7 @@ def ensure_outside_git(path: Path) -> None:
 
 def scan(files: list[str], cwd: Path) -> bool:
     """True only when check-denylist.sh ran over every file and found nothing."""
+    require_denylist()
     ensure_outside_git(cwd)
     clean = True
     for i in range(0, len(files), SCAN_BATCH):
@@ -206,6 +207,18 @@ def resolved_denylist() -> str:
     return run(["bash", "-c", f'. "{ROOT}/scripts/denylist-path.sh"; resolve_denylist_path'], env=isolated_env()).strip()
 
 
+def require_denylist() -> Path:
+    """The resolved denylist; raises PublishError unless it is an existing, non-empty file.
+    check-denylist.sh exits 0 and scans nothing when none resolves; this stops that reading as clean."""
+    path = Path(resolved_denylist())
+    if not path.is_file() or path.stat().st_size == 0:
+        raise PublishError(
+            f"no denylist to scan against: {path} is missing or empty; "
+            "set THEFORGE_DENYLIST_FILE, or restore the committed .theforge-denylist"
+        )
+    return path
+
+
 def resolve_release(repo: Path, ref: str, ancestor_of: str) -> str:
     sha = run(["git", "-C", str(repo), "rev-parse", "--verify", f"{ref}^{{commit}}"], env=isolated_env()).strip()
     ancestry = subprocess.run(
@@ -231,7 +244,7 @@ def publish(args: argparse.Namespace) -> int:
         message.write_text(MESSAGE_TEMPLATE.format(version=args.version))
         (tmp / "identity.txt").write_text(f"{args.author_name} <{args.author_email}>\n")
         files = list_files(tree)
-        print(f"publish_snapshot: scanning {len(files)} files against {resolved_denylist()}")
+        print(f"publish_snapshot: scanning {len(files)} files against {require_denylist()}")
         ok = scan(files, tree)
         ok = scan(["message.txt", "identity.txt"], tmp) and ok
         if not ok:

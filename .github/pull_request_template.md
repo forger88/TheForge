@@ -36,4 +36,4 @@ Neutrality: <mechanical scan result (`pre-commit run --all-files`), naming wheth
 
 Door: <one-way or two-way>. Blast radius: <one word, then a line if it needs one>
 
-Review: Standards: <performer, tier[, model], clean-context or the builder's own> — <what the axis found and how it was addressed, or `n/a (light gate: <reason>)`>. Spec: <performer, tier[, model], clean-context or the builder's own> — <same, against the design doc slice or the issue>. Self-review: <performer, tier, clean-context or the builder's own> — <parts covered; found/addressed>.
+Review: Standards: <performer, tier[, model], clean-context> — <what the axis found and how it was addressed, or `n/a (light gate: <reason>)`>. Spec: <performer, tier[, model], clean-context> — <same, against the design doc slice or the issue>. Self-review: <performer, tier, clean-context or the builder's own> — <parts covered; found/addressed>.

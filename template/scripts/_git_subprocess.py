@@ -1,6 +1,7 @@
 """Shared git-subprocess helper for check_forge_drift.py,
 check_sync_duplicates.py and check_forge_sync_trust_diff.py, and for
-their own test fixtures.
+their own test fixtures; `authenticated_url` is also called directly
+from `review-gate-check.yml`'s SDLC-hold-check step.
 
 Each script passes a project-owned, review-gated value (`_src_path`,
 `--base`, `--new`) to git as a positional revision or URL; a value
@@ -9,7 +10,9 @@ is the one place that check lives, and `run_git` is the one place the
 subprocess call and its timeout live, so neither is reinvented per
 script with its own timeout (or lack of one). `source_url` and
 `display_url` are the one place `_src_path`'s shorthand expansion and
-its credential redaction live, for the same reason. `resolve_sync_target`
+its credential redaction live, for the same reason; `authenticated_url`
+is the one place a credential is embedded into a URL, the inverse
+operation. `resolve_sync_target`
 is the one place the ref a sync targets is decided, so the trust diff and
 the drift check cannot disagree with each other or with `copier update`.
 `copier_yml_at` is the one place `copier.yml`'s (or `copier.yaml`'s) text
@@ -125,6 +128,30 @@ def copier_yml_at(repo: str | Path, rev: str, timeout: int, runner=None) -> str 
     return None
 
 
+_DESCRIBE_SUFFIX_RE = re.compile(r"^.*-\d+-g([0-9a-f]+)$", re.IGNORECASE)
+
+
+def normalise_endpoint(endpoint: str) -> str:
+    """A `git describe` string (`<tag>-<n>-g<hex>`) reduces to its trailing
+    `<hex>`; a bare tag or SHA passes through unchanged."""
+    match = _DESCRIBE_SUFFIX_RE.match(endpoint)
+    return match.group(1) if match else endpoint
+
+
+def endpoints_match(reported: str, actual: str) -> bool:
+    """Whether a PR-body-reported `<old>..<new>` endpoint matches the
+    answers file's own `_commit` value, allowing for a `git describe`
+    suffix on either side and a short SHA being a prefix of the full one.
+    Shared by every PR-body record line that cites a `_commit` endpoint
+    (`check_forge_sync_trust_record.py`, `check_sdlc_wording_hold.py`), so
+    a change to this matching rule changes both the same way at once."""
+    reported, actual = normalise_endpoint(reported), normalise_endpoint(actual)
+    if reported == actual:
+        return True
+    shorter, longer = sorted((reported, actual), key=len)
+    return bool(shorter) and longer.startswith(shorter)
+
+
 def display_url(url: str) -> str:
     """Strip userinfo (a credential) from a URL before it reaches an error
     message. Handles standard URL forms (`https://user:token@host/...`) and
@@ -142,6 +169,29 @@ def display_url(url: str) -> str:
         return url
     except ValueError:
         return "<unparsable URL>"
+
+
+def authenticated_url(url: str, token: str) -> str:
+    """`url` with `token` embedded as HTTPS Basic-auth userinfo
+    (`x-access-token:<token>@host`), the credential shape `display_url`
+    above already redacts; lets a caller read a private `_src_path`
+    (docs/security/threat-model.md, T15) without changing `source_url`'s
+    own output, which stays public-shaped. Returns `url` unchanged for an
+    empty token, a non-http(s) scheme (an SSH URL or local path can't
+    take a token this way), or a URL that already carries userinfo. The
+    caller is responsible for not logging the result; CI's automatic
+    masking of a `secrets.*`-sourced token covers that case, nothing
+    else does."""
+    if not token:
+        return url
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return url
+    if parts.scheme not in ("http", "https") or not parts.netloc or "@" in parts.netloc:
+        return url
+    netloc = f"x-access-token:{token}@{parts.netloc}"
+    return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
 
 
 # Final-release tags only (`1.2.3`, `v1.2.3`), the only shape TheForge publishes. Copier also accepts other PEP 440

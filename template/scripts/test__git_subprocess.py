@@ -25,7 +25,12 @@ from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _git_subprocess import clean_git_env, copier_yml_at, resolve_sync_target  # noqa: E402
+from _git_subprocess import (  # noqa: E402
+    authenticated_url,
+    clean_git_env,
+    copier_yml_at,
+    resolve_sync_target,
+)
 
 _SCRIPTS_DIR = Path(__file__).resolve().parent
 _SUBPROCESS_CALL_NAMES = frozenset(("run", "Popen", "check_call", "check_output", "call"))
@@ -239,6 +244,41 @@ class CopierYmlAt(unittest.TestCase):
         copier_yml_at("/repo", "abc123", 5, fake_runner)
         args = calls[0]
         self.assertEqual(args[args.index("--end-of-options") + 1], "abc123:copier.yml")
+
+
+class AuthenticatedUrl(unittest.TestCase):
+    def test_embeds_token_as_https_userinfo(self):
+        self.assertEqual(
+            authenticated_url("https://github.com/forger88/TheForgeStaging.git", "tok"),
+            "https://x-access-token:tok@github.com/forger88/TheForgeStaging.git",
+        )
+
+    def test_empty_token_returns_url_unchanged(self):
+        url = "https://github.com/forger88/TheForgeStaging.git"
+        self.assertEqual(authenticated_url(url, ""), url)
+
+    def test_ssh_url_is_unchanged(self):
+        url = "git@github.com:forger88/TheForgeStaging.git"
+        self.assertEqual(authenticated_url(url, "tok"), url)
+
+    def test_local_path_is_unchanged(self):
+        self.assertEqual(authenticated_url("/tmp/some/clone", "tok"), "/tmp/some/clone")
+
+    def test_url_already_carrying_userinfo_is_unchanged(self):
+        url = "https://x-access-token:other@github.com/forger88/TheForgeStaging.git"
+        self.assertEqual(authenticated_url(url, "tok"), url)
+
+    def test_unparsable_url_is_unchanged(self):
+        # A malformed IPv6-shaped host urlsplit rejects outright, same
+        # trigger display_url's own "unparsable" branch guards against.
+        url = "https://[::1/repo.git"
+        self.assertEqual(authenticated_url(url, "tok"), url)
+
+    def test_round_trips_through_display_url(self):
+        from _git_subprocess import display_url
+
+        url = "https://github.com/forger88/TheForgeStaging.git"
+        self.assertEqual(display_url(authenticated_url(url, "tok")), url)
 
 
 if __name__ == "__main__":

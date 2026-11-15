@@ -114,7 +114,7 @@ Stage 5 (the full multi-slice path) sets no label itself: by the time its design
 
 `needs-decision` marks a ticket that no thread may work on until the owner has decided the open question it's blocked on.
 It's a hard block a build thread checks for before picking up a ticket, orthogonal to every other label here.
-It stacks with a state label and with a deferral label (`hanging`, `future`, `deferred-arch-finding`) rather than replacing any of them, because the ticket's other labels still describe what it is once the question is resolved.
+It stacks with a state label and with a deferral label (`hanging`, `deferred-accepted-risk`, `future`, `deferred-arch-finding`) rather than replacing any of them, because the ticket's other labels still describe what it is once the question is resolved.
 
 **Who sets it**: whoever raises the open question: a triage pass, a build thread that hits a decision it can't make itself, a review pass's triage, a design that accepts a non-security risk (SDLC-107), or the owner directly.
 
@@ -123,7 +123,7 @@ It stacks with a state label and with a deferral label (`hanging`, `future`, `de
 There's no staleness threshold or escalation on the label itself.
 
 **Closing it**: the ticket stays blocked until the owner comments on it with a decision.
-A thread then records the outcome, quoting or summarising the owner's decision in a comment, and removes the label, either closing the ticket (the decision was to drop it) or leaving it with whatever label now reflects the decision (back to `ready-for-build`, `hanging` for an accepted risk, or `wontfix`).
+A thread then records the outcome, quoting or summarising the owner's decision in a comment, and removes the label, either closing the ticket (the decision was to drop it) or leaving it with whatever label now reflects the decision (back to `ready-for-build`, `deferred-accepted-risk` for an accepted risk, `hanging` for a deferral, or `wontfix`).
 Removing the label without that recorded outcome is a labelling bug.
 
 ## `needs-grilling`
@@ -220,14 +220,15 @@ Every entry kind needs its label, and every label needs at least one entry.
 
 ## Parking labels
 
-Three labels park an issue instead of queuing it for a build: `hanging`, `future` and `deferred-arch-finding`.
-Each has its own owner, its own parent epic, and its own treatment in the release notes.
+Four labels park an issue instead of queuing it for a build: `hanging`, `deferred-accepted-risk`, `future` and `deferred-arch-finding`.
+Each has its own owner, parent epic and release-notes treatment; `hanging` and `deferred-accepted-risk` share the hanging epic and its treatment, and differ only in why the issue is parked.
 
 When the owner asks for a ticket and doesn't say which of now, `hanging` or `future` it is, any thread asks before filing it (`.forge/tickets-and-branches.md`, "Ask which state a requested ticket goes into").
 
 | Label | Means | Set by | Parent epic | Revisit trigger | In the release notes |
 |---|---|---|---|---|---|
-| `hanging` | A real, agreed gap that is deliberately not being worked: an accepted risk, or deferred until a named point in time. An accepted risk carries its `Risk:` line and the owner's recorded decision (SDLC-107). | The owner only. | #342 | The hanging epic's revisit cadence, plus any `Revisit: YYYY-MM-DD` date or condition recorded in the issue itself. | Each open issue a user or integrator could hit becomes a **Known issues** entry. |
+| `hanging` | A real, agreed gap that is deliberately not being worked now, deferred until a named point in time or condition. An accepted risk is never `hanging`; it is `deferred-accepted-risk`. | The owner only. | #342 | The hanging epic's revisit cadence, plus any `Revisit: YYYY-MM-DD` date or condition recorded in the issue itself. | Each open issue a user or integrator could hit becomes a **Known issues** entry. |
+| `deferred-accepted-risk` | A known risk the owner has explicitly decided to live with rather than fix (SDLC-107). It carries its `Risk:` line and the owner's recorded decision; a security risk's own record is its row in `docs/security/threat-model.md`'s accepted-risks section, and the ticket points at it. | The owner only, on a recorded decision: usually the outcome of a `needs-decision` ticket, or directly. | #342 | The hanging epic's revisit cadence, plus any `Revisit: YYYY-MM-DD` date or condition recorded in the issue itself; a revisit reopens the owner's decision, not the work. | Each open issue a user or integrator could hit becomes a **Known issues** entry. |
 | `future` | An owner-raised or grilling-produced idea, not yet scheduled or scoped. Applied only when the owner says the idea is deferred; if their words don't say so or are unclear, ask whether it is for now or deferred before filing (SDLC-020). | The owner, or a grilling thread. | #341 | None. It moves only when the owner starts the feature pipeline on it, which removes the label and detaches it from the epic. | Left out. |
 | `deferred-arch-finding` | Provenance and status in one label: the issue was produced by a stage 8 architecture pass, a post-merge review run, or a builder's out-of-scope gap, and is not actioned right now. | A review pass's triage, or a builder's weak out-of-scope gap. Never set on an issue the owner raised directly. | #343 | None recorded; it is parked on priority, not on design. | The open ones make **one summary count line** in Known issues. Once an issue is actioned the label is removed entirely. |
 

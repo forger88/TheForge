@@ -1,6 +1,6 @@
 ---
 name: requirements-spec
-description: Rewrite or update this project's living requirements specification (docs/requirements/requirements-specification.md) by reversing requirements out of the current code, docs, and tests, and marking each one's real-world status. Use when asked to refresh, audit, or rewrite the requirements spec, or to check it against current main.
+description: Sets the form of docs/requirements/requirements-specification.md, and rewrites or updates it from the current code, docs and tests, marking each requirement's real-world status. Use for any edit to that file (a status, Notes, Evidence, Known gaps or Traceability change, or a closing step), or when asked to refresh, audit or rewrite it, or check it against current main.
 ---
 
 # Requirements specification
@@ -16,13 +16,17 @@ whether it does it now. It is not a design description: the architecture
 description, any subsystem design docs, the design docs under
 `docs/design/` and the ADRs carry the how and the why.
 
-The spec's own "Conventions" section is authoritative for IDs, wording and
-statuses; this skill follows it and never contradicts it. If the two
-disagree, the spec wins and this skill's copy is the thing to fix.
+This skill sets the specification's form (SDLC-119; `.forge/agent-skills-and-reference.md`,
+"Artefacts and the skills that govern them") for every edit to the file,
+not only a full rewrite. The spec's own "Conventions" section restates
+these rules and may add this project's own choices, such as its ID
+blocks, but never contradicts them; where the two disagree, this skill
+wins and the Conventions section is the thing to fix, in a ticketed docs
+PR.
 
 ### Structure
 
-The template seeds six sections; keep them, in this order:
+TheForge seeds six sections; keep them, in this order:
 
 1. **Conventions**: IDs, wording, statuses, evidence, and what happens
    when a change would break a requirement.
@@ -64,17 +68,50 @@ Add them in a ticketed docs PR, and keep the six above.
   never reused, and a removed requirement's ID stays retired, because
   PRs, tickets and test markers cite IDs and a reused one silently
   re-points every old citation.
-- **Requirement**: one atomic, testable "shall" sentence. No
-  implementation detail, file names, history or rationale.
+- **Requirement**: one atomic, testable "shall" sentence stating the
+  **effect** the system must have, not the mechanism that produces it. No
+  implementation detail, file names, library or algorithm choice,
+  internal step, history or rationale: that belongs in the architecture
+  description, a design doc under `docs/design/`, or an ADR, cited from
+  Notes.
+
+  Contrast, using a generic example:
+
+  | How (wrong) | Effect (right) |
+  |---|---|
+  | The system shall use a Redis-backed sliding-window counter to reject a request once a client exceeds 100 requests per minute. | The system shall reject a client's request once it exceeds 100 requests per minute. |
+
+  The right-hand wording is what a test can check without reading the
+  rate-limiting implementation. The left-hand wording locks the
+  mechanism into the spec, where a later swap (a different store, a
+  different algorithm) would force a wording change and an owner
+  approval it doesn't need, when only the effect actually matters to the
+  contract.
 - **Status**: `Satisfied`, `Partially Satisfied` or `Not yet Satisfied`,
   as the spec's Conventions section defines them. A status other than
   Satisfied has its row in Known gaps with a tracking issue.
 - **Notes**: a pointer only (the Known gaps row, a tracking issue, an
   ADR ID), never prose.
 - **Evidence** only for critical behaviours (authorization, approval
-  boundaries, isolation, fail-closed paths): a short bold "Evidence"
-  paragraph after the table naming the code and tests. Everything else
-  is covered by the test markers and the traceability table.
+  boundaries, isolation, fail-closed paths); the criterion for which
+  requirements get one is unchanged, and a new critical requirement gets one
+  the same as any existing one. It is a short paragraph after the table: a
+  bold label,
+  `**Evidence:**` or `**Evidence (<requirement IDs>):**`, then
+  backticked repo-relative file paths separated by commas: the files of
+  any kind the repo stores that implement or prove the behaviour (code,
+  tests, ADRs, design docs, the user or operator guide). File level
+  only: no symbol, function, line or test name, no issue or PR number,
+  no date, no history and no "How:" or other prose. How a file does it
+  belongs in the architecture description or a design doc, which
+  Evidence may name. `scripts/check_requirements_evidence.py` (the
+  `requirements-evidence` pre-commit hook) checks this shape and that
+  every path exists. Everything else is covered by the test markers and
+  the traceability table.
+
+  Example:
+
+  > **Evidence (FR-001):** `src/auth/middleware.py`, `tests/test_auth_middleware.py`, `docs/adr/0003-session-tokens.md`
 
 ### What never goes in the document
 
@@ -117,7 +154,8 @@ and a spec-only one carrying every proposed wording change for approval.
 - If you can't settle a status by reading the code, keep reading (or
   delegate a focused check) until you can. Don't publish an
   "ambiguous" status.
-- Check every file, test and symbol the document names exists.
+- Check every file the document names exists; the Evidence hook checks
+  Evidence paths, and Notes and Traceability paths are checked by hand.
 - Keep working notes outside the document.
 
 ## Gathering context

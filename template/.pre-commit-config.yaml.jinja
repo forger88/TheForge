@@ -88,6 +88,20 @@ repos:
         # Includes the source files it baselines, so renaming one re-runs the check.
         files: \.(py|js|mjs|cjs|ts|tsx|jsx|vue|go|rs|java|kt|rb|cs)$|^scripts/(check_coverage_baseline\.py|coverage_baseline\.json)$
 
+      # The requirements specification's Evidence paragraphs (SDLC-119;
+      # `.agents/skills/requirements-spec/SKILL.md`, "Evidence"). Shrink-only
+      # baseline, the same shape as module-size/dead-code above. always_run,
+      # not just a files: trigger, because a path an Evidence paragraph
+      # names can go missing from an edit to that other file, not just to
+      # the spec itself; the check itself is cheap (one markdown file, a
+      # handful of path lookups).
+      - id: requirements-evidence
+        name: requirements evidence paragraphs
+        entry: python3 scripts/check_requirements_evidence.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
       # pass_filenames: false and a full-tree-scanning script (self-review part 6)
       # so that editing this checker's own patterns re-checks every tracked
       # file, not just the checker's own source.
@@ -130,7 +144,7 @@ repos:
       # disabling every forge rule exactly as losing the import line does --
       # would otherwise pass no file either pattern matches.
       - id: forge-entrypoint
-        name: CLAUDE.md keeps its forge entrypoint import
+        name: CLAUDE.md keeps its forge entrypoint import; AGENTS.md stays a thin shell
         entry: python3 scripts/check_forge_entrypoint.py
         language: system
         pass_filenames: false

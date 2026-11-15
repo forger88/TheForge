@@ -25,12 +25,10 @@ if [ ! -f "$repo_root/copier.yml" ] || [ ! -d "$repo_root/template" ]; then
   exit 0
 fi
 
-# Defensive: a real render never has both files above, but if some future
-# layout change made that possible, an answers file on disk means Copier itself
-# already rendered this tree, so it isn't a raw copy.
-if [ -f "$repo_root/.copier-answers.yml" ]; then
-  exit 0
-fi
+# A root .copier-answers.yml is not evidence of a real render (ADR-0009): this
+# repository's own self-retrofit commits one at root, and a raw copy of root
+# is byte-identical, answers file included. Only the remote (below) tells a
+# genuine forge-development clone apart from a raw copy or template-button copy.
 
 # TheForge's own working copy, including a contributor's fork: some remote
 # names forger88/TheForge, or the private staging repository

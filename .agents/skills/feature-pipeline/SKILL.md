@@ -93,7 +93,7 @@ A retry after any partial failure, or a second direct or retrofit run of this jo
    Closing this ticket requires the pass's findings to be *filed* per the bundling rule (`.forge/post-merge-review.md`, "Findings"), not fixed.
    Note in the body that closing the tracker itself is a separate, later gate ("Closing the tracker" below) that waits on the Must findings' fix PRs actually merging.
 2. **`Stage 8 architecture pass for <feature>`**, blocked by the post-merge review pass ticket above.
-   Body: run `improve-codebase-architecture` scoped to the files the feature's design doc's slices named or touched, never the whole codebase, including a check against the `impeccable` skill for drift from stage 3 and 5's UI check for any user interface in that scope.
+   Body: run `improve-codebase-architecture` scoped to the files the feature's design doc's slices named or touched, never the whole codebase, including its shared-idiom check against the design doc's shared-idioms table and a check against the `impeccable` skill for drift from stage 3 and 5's UI check for any user interface in that scope.
    Then triage every finding per `.forge/feature-pipeline.md`'s stage 8: Strong → fix now; rejected with a load-bearing reason → ADR; a finding worth exploring → a `needs-decision` ticket; everything else → a `deferred-arch-finding` issue under the architecture-findings epic #343.
    Post the triage on the feature issue, including the same-shape "is there a principle here?" check.
    Note in the body **Route: a fresh design-tier thread, briefed with the design doc** (design-tier judgement on code that's already merged, not a slice build).

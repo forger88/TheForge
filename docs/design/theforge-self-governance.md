@@ -189,7 +189,7 @@ T13's control list also gains the filtered count, with no change of residual ris
 
 - `python3 scripts/check_forge_entrypoint.py` (rendered into root by this copy) passes against root: I1 and I2 of ADR-0006 hold for TheForge itself.
 - `python3 template/scripts/check_retrofit_preconditions.py --root .` now exits non-zero. That is the expected proof that the root counts as a consumer.
-- `scripts/check-not-raw-clone.sh` still exits 0. It now passes on two grounds, the answers file and the remote.
+- `scripts/check-not-raw-clone.sh` still exits 0. It passes on the remote alone (ADR-0004, amended).
 - I1 check: `git diff --name-only origin/main` lists nothing under the I1 paths.
 - I2 check: every `##` heading of today's root `CLAUDE.md` appears in the PR body's mapping table with exactly one outcome.
 

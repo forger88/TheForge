@@ -65,7 +65,7 @@ Re-invoke this skill and `/implement` (which itself re-reads `/tdd`) fully for *
 
 1. **Implement, in a dedicated worktree, not the shared checkout.**
    Before any edit, swap the ticket's `queued` label for `in-flight` (`docs/agents/triage-labels.md`, "Queue labels").
-   Then create this ticket's own worktree off a freshly fetched `origin/main` with plain `git`: `git fetch origin main && git worktree add ../<branch-name> -b <branch-name> origin/main`.
+   Then create this ticket's own worktree off a freshly fetched `origin/main` with plain `git`: `git fetch origin main && git worktree add ../<branch-name> -b <branch-name> origin/main` (or the single call `python3 scripts/worktree_setup.py <branch-name>`, which does the same fetch-and-add idempotently and also symlinks the project's shared dependency directories, per `scripts/worktree_shared_paths.txt`).
    Don't use a harness's session-level worktree tools for this; they are a different mechanism and may stop on a permission prompt.
    Run every remaining step (implementation, tests, review, PR, merge) from inside the directory `git worktree add` created, and remove it the same way (`git worktree remove`, step 3).
    This mechanically enforces "one branch per issue, taken fresh off main" (`.forge/tickets-and-branches.md`): that rule says which commit a branch starts from, and this says where the agent's working directory lives while it builds it.
@@ -77,6 +77,7 @@ Re-invoke this skill and `/implement` (which itself re-reads `/tdd`) fully for *
    For a fix to a finding or bug, draw up the list of the fixed class's other members from its source before `/code-review` runs, and give it to the Spec axis as the planned `Evidence:` text.
    If the harness doesn't hand you `/implement`, `/tdd` or `/code-review` on its own, find each yourself under `.agents/skills/` and read the discovered `SKILL.md` manually.
    If you cannot find one you've been told to use, that is a hard stop: don't proceed, substitute your own version, or skip it; ask the coordinator for help, who escalates to the owner if it cannot be resolved (SDLC-112).
+   If you have no sub-agent tool to start `/code-review`'s two axes, don't run them yourself: open the PR unmerged, hand them to the thread that started you, and leave step 1a's self-review until they have reported (`.forge/review-gate.md`, "A builder with no sub-agent tool asks its parent for the review").
    When the ticket points at a slice of a design doc under `docs/design/`, that slice section is the spec: its invariants, interface, guard test and file scope.
    A deviation from it is recorded in that section in the same PR (`.forge/feature-pipeline.md`, stage 7); `/code-review`'s Spec axis treats an unrecorded deviation as a finding.
 
@@ -122,7 +123,8 @@ Re-invoke this skill and `/implement` (which itself re-reads `/tdd`) fully for *
    - `Guides:` says which guide the PR updates in this same PR: the user guide for a change to user-visible behaviour, the operator guide for a change to configuration or operation (SDLC-089), or `none`.
    - `Door:` says whether the change is a one-way door (a migration, a deletion, a cutover step, anything not undone by reverting the PR) or a two-way door, and names the blast radius in a word.
    - `Review:` carries all three records (SDLC-098).
-     `/code-review`'s Standards and Spec axes each report their own performer, tier and reported model; for a `ready-for-build` ticket with no design-exit pass, both ran clean-context against this build, so name the performer and nothing more.
+     `/code-review`'s Standards and Spec axes each report their own performer, tier and reported model; for a `ready-for-build` ticket with no design-exit pass, both ran clean-context against this build, so name the performer and record its context as `clean-context`.
+     An axis run on your behalf by the thread that started you is recorded the same way, under that reviewer's own performer; an axis still waiting for it reads `awaiting independent review, requested from <that thread>` and blocks the merge until replaced.
      `Self-review:` is filled per step 1a.
      On a light-gate PR (`.forge/review-gate.md`), the two axis entries read `n/a (light gate: <reason>)` rather than being left blank.
    - Step 1a's self-review, together with `/code-review`'s Standards and Spec axes, is this repo's full review gate (SDLC-042); there is no further review to request or wait on.
@@ -133,6 +135,7 @@ Re-invoke this skill and `/implement` (which itself re-reads `/tdd`) fully for *
 
 3. **Merge to main.**
    - Once every Must and Should finding from steps 1a and 2 is fixed and checks pass, merge the PR to main via the merge button (no force-push).
+   - When you merge a PR another thread or sub-agent built, including one you started, first re-read its current `Review:` line, run any gate step it does not record as done, and run `scripts/check_review_gate.py` on its current body and changed-file list (`.forge/review-gate.md`, "A builder with no sub-agent tool asks its parent for the review").
    - **If the PR conflicts with `origin/main`:** merge `origin/main` into the branch (never rebase: rebasing needs a force-push, and this step allows none) and resolve by reading `.agents/skills/resolving-merge-conflicts/SKILL.md`.
      That skill's own "automated checks" step means this ticket's scoped tests (`.forge/ci-and-checks.md`, "A ticket's own checks") plus the pre-commit hook (`.forge/ci-and-checks.md`, "Lint is enforced by the pre-commit hook, not CI"), never a full suite run; re-run step 1's scoped tests before merging, the same tests, not a fresh selection.
    - Remove the ticket's `in-flight` label (it has left the queue).

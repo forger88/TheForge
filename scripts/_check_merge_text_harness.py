@@ -505,8 +505,8 @@ def _gh_config_env(
 # other scans stay green; the review-gate tests below override it.
 CLEAN_BODY = (
     "A clean PR body.\n\n"
-    "Review: Standards: sub-agent, build-tier - clean. "
-    "Spec: sub-agent, build-tier - clean. "
+    "Review: Standards: sub-agent, build-tier, clean-context - clean. "
+    "Spec: sub-agent, build-tier, clean-context - clean. "
     "Self-review: builder's own, build-tier - nothing further.\n"
 )
 

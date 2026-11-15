@@ -40,6 +40,10 @@ A guard test that cannot fail tends to appear late in long build sessions, which
 A fresh sandbox usually lacks the project's pinned document-build tools, so the document-consistency and render checks fail there for an environmental reason, not a regression.
 The thread installs the pinned versions once, into a user-owned directory, with checksum verification, before treating such a failure as a finding.
 
+This project's own post-merge review has now caught the same misclassification four times running (#670, #674, #678, #687): a change that ships shared process, scaffolding or configuration lands `release:internal` even though a downstream repository must act on it after syncing.
+Each run narrowed the sweep's own definition of what counts, and the fourth run found that the third run's fix (#685, which added `self-review`'s "Sync-impact category checklist") had itself swept only the SDLC document's own path for its category 8, not the category as the checklist actually words it, and missed a hit against the checklist's own introduction (#685/#678) and a guard-script change it never re-checked (#622/#597).
+A category-8-shaped PR search by file path, run once at fix time, tends to miss the fix's own diff and any guard-script change outside the paths that round happened to list; a sweep against the checklist's current wording, re-run over the full range each time rather than only the new PRs since the last pass, is what actually closes the class.
+
 ## Rotation
 
 The Main Health thread is long-running, because its environment is the most expensive to rebuild, and rotates at a pass boundary rather than on a fixed count.

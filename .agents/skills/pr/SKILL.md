@@ -1,6 +1,6 @@
 ---
 name: pr
-description: "Use when writing a PR body."
+description: "Use when writing a PR body, to fill `.github/pull_request_template.md`'s Before/After/summary and Evidence fields."
 metadata:
   credits:
     skill: show-me
@@ -9,38 +9,13 @@ metadata:
     url: "https://github.com/humanlayer/skills/blob/main/plugins/show-me/skills/show-me/SKILL.md"
 ---
 
-<!-- Source: mattpocock/skills (https://github.com/mattpocock/skills), skills/in-progress/pr/SKILL.md @ c55ee46073 (2026-09-18), MIT. See ../THIRD_PARTY.md. -->
+<!-- Source: mattpocock/skills (https://github.com/mattpocock/skills), skills/in-progress/pr/SKILL.md @ c55ee46073 (2026-09-18), MIT. See ../THIRD_PARTY.md. Modified: rewritten to fill `.github/pull_request_template.md`'s own fields, no longer a separate template of its own. -->
 
-Use this template for writing the PR body:
+Fill `.github/pull_request_template.md`'s fields with this guidance; this skill is not a template of its own. Skip all preambles and keep prose brief. Use the user's domain language from `CONTEXT.md`.
 
-```markdown
-## Summary
+## `Before:` / `After:` / the one-sentence summary
 
-<diagram, diff-sketch, or tree>
-
-## Evidence
-
-- **Before:** <screenshot/output/failing test run>
-  **After:** <screenshot/output/passing test run>
-
-## Merge Danger
-
-**Door:** <one-way or two-way>
-
-<optional: description>
-
-**Blast Radius:** <one-word description>
-
-<optional: potential ramifications of merge>
-```
-
-## Sections
-
-Skip all preambles and keep prose brief. Use the user's domain language from `CONTEXT.md`.
-
-### Summary
-
-Pick the smallest view that makes the key point clear.
+Pick the smallest view that makes the key point clear. A screenshot, a short description, or one of the sketches below can fill `Before:` and `After:`; add the one-sentence summary only when the change isn't obvious from them.
 
 - Show logic or an algorithm as pseudocode:
 
@@ -149,22 +124,14 @@ function expandSkill(command: string): string {
 }
 ```
 
-#### Guidance
+### Guidance
 
-Place each visual next to the short text it supports. Keep only the calls, files, props, states, and boundaries needed to answer the user's current question or the options to resolve the current discussion point.
+Place each visual next to the short text it supports. Keep only the calls, files, props, states, and boundaries needed to answer the reviewer's likely question.
 
-You may use one of these, you may use several, it is unlikely you will use all of them. Use your judgement and don't overwhelm the user.
+You may use one of these, you may use several, it is unlikely you will use all of them. Use your judgement and don't overwhelm the reviewer.
 
-### Evidence
+## `Evidence:`
 
-Concrete evidence that the change works. Show a before and after.
+Fill `Evidence:` with the template's own definition: the command that went red before the change and green after, pasted with its real result, not pseudocode. For a guard test, add the run with the guard removed. For a fix to a finding or bug, name the other members of its class this PR checked, and the source that list came from.
 
-Screenshots are S-tier - when the environment is set up for it and the change is visual.
-
-Execution-based evidence is A-tier. Test results, console output. Show the exact test that now fails and passes, using pseudocode.
-
-### Merge Danger
-
-Describe whether it's a one-way or two-way door. You can walk back through two-way doors, but not one-way doors. A PR that is cheap to roll back is lower risk. Changes that involve destructive actions or hard-to-reverse decisions are one-way doors.
-
-The blast radius is the potential impact or scope of the changes introduced by this PR. Consider all possibilities. Examples are layout shift, breakages for consumers, mobile responsiveness, etc.
+Add a screenshot alongside when the change is visual and the environment is set up for it; it supplements the pasted result, it doesn't replace it.

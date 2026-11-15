@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "codeword": "THIMBLEROOK",
+  "codeword": "THORNFIELDGATE",
   "sections": {
     "Start-of-session self-check": [],
     "Your role": [
@@ -51,7 +51,7 @@
       {
         "path": "docs/agents/triage-labels.md",
         "heading": "`needs-decision`",
-        "sha256": "fe273f62b50b7298a3ffd68d023bba7bf8691e2cdd2b529311ef4d448ba005d1"
+        "sha256": "b556d6766a49505a5cf59d8e50da9aadccfd7e87d58e41a13bc5eef5de4236eb"
       },
       {
         "path": "docs/agents/triage-labels.md",
@@ -66,14 +66,14 @@
       {
         "path": "docs/agents/triage-labels.md",
         "heading": "Parking labels",
-        "sha256": "848e88f0e02b57382d7e95ab5009f578786903fe3d951cd95ef77b80491b9643"
+        "sha256": "20e262890b63f3b9ca4b5fb1c790934aad275e6e98e45ed4076ab9c2b359fb77"
       }
     ],
     "Routing and tiers": [
       {
         "path": ".forge/orchestration.md",
         "heading": "Capability tiers",
-        "sha256": "226804eb1f61ea8ec40429a20421babaa4fedaf956ceb7736fdec55f120108b1"
+        "sha256": "3e631fb704e439dfefcc2b208455e3eac04aefd2283e0c7031989a246dffe52c"
       },
       {
         "path": ".forge/orchestration.md",

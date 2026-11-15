@@ -26,6 +26,8 @@ This is a clarification of the rule above, not a new one: the full gate and the 
 `scripts/check_review_gate.py`, run by the always-on `review-gate-check` PR check, reads a PR's `Review:` field and its changed-file list and fails unless the field clears the gate those files actually require.
 It recognizes exactly the full-gate and light-gate shapes above and no others: a `Review:` line citing some other exemption still fails unless it independently satisfies one of them, so an invented exemption fails closed instead of needing to be anticipated by name.
 It also fails any Standards or Spec entry containing `builder's own` or `no sub-agent tool`, the wording below prescribes for an axis the builder reviewed itself, so that axis cannot clear the full gate; a real sub-agent's entry never uses either phrase, even to negate it.
+It also fails a Standards or Spec entry, other than the light gate's `n/a`, that starts with `awaiting` or does not record `clean-context` (or `clean sub-agent`), so an axis still waiting for its reviewer, or reviewed only in chat, cannot clear the full gate.
+It cannot tell whether a recorded review really ran; that is the merger's check below and the post-merge review's.
 This exists because real self-merges have cited review-gate wording that didn't hold up — a drafting-time misjudgment about which gate applied or whether an exemption existed, not an ambiguous rule.
 The check is a backstop on the builder's own gate choice above, not a redefinition of it: when the two disagree, this file's rule is what the check is implementing, and a check that disagrees with it is the bug.
 
@@ -38,10 +40,24 @@ Failing to find a skill you were told to use is a hard stop: do not proceed, sub
 
 ## A clean-context review needs a sub-agent that really ran
 
-A clean-context sub-agent is one the builder actually starts for that axis, with the harness's sub-agent tool (an Agent or Task tool, or its equivalent).
-A thread with no such tool cannot run the full gate's Standards and Spec axes, and that is a hard stop of the same kind as a missing skill: say so on the PR or ticket and ask the coordinator, who escalates to the owner, rather than reviewing the diff yourself in their place.
+A clean-context sub-agent is one actually started for that axis, by the builder or on its behalf by the thread that started it, with the harness's sub-agent tool (an Agent or Task tool, or its equivalent), or a fresh thread started for that axis alone.
+A builder with no such tool cannot run the full gate's Standards and Spec axes itself, and that is a hard stop of the same kind as a missing skill: it says so on the PR and hands the axes to the thread that started it (next section), never reviewing the diff itself in their place.
 A `Review:` entry never calls an axis clean-context, or names a sub-agent for it, unless one was actually started for that axis.
 A review the builder did itself is recorded as the builder's own, for example `builder's own, no sub-agent tool available`, and a full-gate PR whose axes did not run in real sub-agents does not merge until a session that can start them runs them.
+
+## A builder with no sub-agent tool asks its parent for the review
+
+A builder's parent is the thread that started it: the build thread that dispatched it as a sub-agent, or the coordinator that started it as a thread.
+A builder that cannot start a clean-context sub-agent for the Standards or Spec axis does not merge, and does not hand its PR on to be merged, until that axis has run.
+It opens its PR unmerged, writes each axis it could not run on the `Review:` line as `awaiting independent review, requested from <its parent>`, and asks its parent, in its hand-back or a message, for an independent review of that axis, naming the PR, the ticket or design-doc slice that is its spec, and the planned `Evidence:` list.
+The parent then starts one clean-context reviewer per axis, a fresh sub-agent or, where it has no sub-agent tool, a fresh one-off thread, each briefed with that axis's prompt from `.agents/skills/code-review/SKILL.md` and with no history of the build.
+The parent never reviews the diff itself in a reviewer's place, and never merges, or lets anyone merge, before those reviews have run.
+A parent that cannot start a reviewer asks its own parent in the same way; the coordinator, at the top of that chain, escalates to the owner.
+Must and Should findings are fixed before merge, by the builder if it can still be reached, otherwise by the parent or a build-tier sub-agent it starts, and the mandatory self-review step then runs on the final diff, after the axes (`.forge/self-review.md`).
+Each review is recorded on the PR's `Review:` line before merge, the normal way: its performer (`sub-agent <id> of <session link>`, or the review thread's link), its tier, `clean-context`, what it found and how each finding was addressed.
+A review recorded only in chat, a progress post or the merge message does not count.
+Whoever merges a PR built by another thread or sub-agent, a parent merging its builder's PR included, owns that PR's gate: before merging, it re-reads the PR's current `Review:` line, confirms Standards, Spec and self-review each record a review that actually ran, runs any step that is missing rather than merging past it, and runs `scripts/check_review_gate.py` on the PR's current body and changed-file list.
+A thread that hands builds to sub-agents with no sub-agent tool of their own briefs each one to stop after its tests and hand back for review, rather than finding the gap at merge time.
 
 ## Triage findings by MoSCoW
 

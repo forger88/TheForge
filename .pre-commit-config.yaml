@@ -143,7 +143,7 @@ repos:
       # Root-side counterpart of the consumer `forge-entrypoint` hook (ADR-0006).
       # always_run for the same deletion gap as skills-lock-template above.
       - id: forge-entrypoint-template
-        name: template/CLAUDE.md.jinja keeps its forge entrypoint import
+        name: template/CLAUDE.md.jinja keeps its forge entrypoint import; template/AGENTS.md.jinja stays a thin shell
         entry: python3 template/scripts/check_forge_entrypoint.py --root template --template
         language: system
         pass_filenames: false
@@ -216,12 +216,15 @@ repos:
       # tooling tests (never synced; most synced tests run once, via
       # template-scripts-tests below). Trigger matches by extension, not
       # by name, so a new root-only script isn't silently missed.
+      # The copier.yml/watch-main-ci/queue-sweep/doc-build-setup/bootstrap.py
+      # alternatives fire test_local_full_suite_answers.py, since that guard
+      # renders the whole template and checks the result against those files.
       - id: guard-script-tests
         name: guard script tests
         entry: python3 -m unittest discover -s scripts -p 'test_*.py'
         language: system
         pass_filenames: false
-        files: ^scripts/.*\.(py|sh|json|md)$|^\.pre-commit-config\.yaml$|^\.copier-answers\.yml$|^\.forge/code-shape-rules\.md$|^\.forge/ci-and-checks\.md$|^\.forge/feature-pipeline\.md$
+        files: ^scripts/.*\.(py|sh|json|md)$|^\.pre-commit-config\.yaml$|^\.copier-answers\.yml$|^copier\.yml$|^\.forge/code-shape-rules\.md$|^\.forge/ci-and-checks\.md$|^\.forge/feature-pipeline\.md$|^template/\.agents/skills/(watch-main-ci|queue-sweep|doc-build-setup)/SKILL\.md(\.jinja)?$|^template/\.forge/(ci-and-checks|feature-pipeline)\.md\.jinja$|^template/scripts/bootstrap\.py$
 
       # The template/ counterpart: template/scripts/test_*.py ships to no
       # project any more, so this is the only place most of them run
@@ -281,6 +284,20 @@ repos:
         language: system
         pass_filenames: false
         files: ^docs/tools/document-build\.json$|^docs/requirements/requirements-specification\.md$|^docs/adr/.*\.md$|^docs/tools/(check_document_consistency|render_diagrams)\.py$
+
+      # The requirements specification's Evidence paragraphs (SDLC-119;
+      # `.agents/skills/requirements-spec/SKILL.md`, "Evidence"). Shrink-only
+      # baseline, the same shape as module-size/dead-code above. always_run,
+      # not just a files: trigger, because a path an Evidence paragraph
+      # names can go missing from an edit to that other file, not just to
+      # the spec itself; the check itself is cheap (one markdown file, a
+      # handful of path lookups).
+      - id: requirements-evidence
+        name: requirements evidence paragraphs
+        entry: python3 scripts/check_requirements_evidence.py
+        language: system
+        pass_filenames: false
+        always_run: true
 
       # Guard tests for every doc-build tool under docs/tools/ -- the
       # checker above, document_build.py, render_diagrams.py and
@@ -359,7 +376,7 @@ repos:
       # disabling every forge rule exactly as losing the import line does --
       # would otherwise pass no file either pattern matches.
       - id: forge-entrypoint
-        name: CLAUDE.md keeps its forge entrypoint import
+        name: CLAUDE.md keeps its forge entrypoint import; AGENTS.md stays a thin shell
         entry: python3 scripts/check_forge_entrypoint.py
         language: system
         pass_filenames: false

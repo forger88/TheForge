@@ -11,7 +11,7 @@ This file is the one copy of the checklist. `instructing-agents.md` explains the
   Then run `GITHUB_TOKEN=<token> python3 scripts/bootstrap.py` (add `--dry-run` first to see what it would do).
   By default the script refuses a classic token, a fine-grained token that can see other private repositories, or an app installation token that can reach other repositories; pass `--allow-broad-token` to proceed with a warning instead, for the rare case a narrower token cannot be issued.
 - [ ] **Labels exist.**
-  The triage labels (`needs-triage`, `needs-info`, `needs-grilling`, `ready-for-structure`, `ready-for-feature-design`, `ready-for-build`, `ready-for-human`, `wontfix`, `needs-decision`), the categories (`bug`, `enhancement`), `epic`, the queue labels (`queued`, `in-flight`), the routing label `main-health`, the release-note labels (`release:user`, `release:integrator`, `release:internal`, `breaking`) and the parking labels (`hanging`, `future`, `deferred-arch-finding`).
+  The triage labels (`needs-triage`, `needs-info`, `needs-grilling`, `ready-for-structure`, `ready-for-feature-design`, `ready-for-build`, `ready-for-human`, `wontfix`, `needs-decision`), the categories (`bug`, `enhancement`), `epic`, the queue labels (`queued`, `in-flight`), the routing label `main-health`, the release-note labels (`release:user`, `release:integrator`, `release:internal`, `breaking`) and the parking labels (`hanging`, `deferred-accepted-risk`, `future`, `deferred-arch-finding`).
   Confirm with `gh label list --repo {{ repo_owner }}/{{ repo_name }}`.
 - [ ] **The five standing trackers exist and their numbers are recorded** in `.copier-answers.yml` as `post_merge_review_tracker`, `deferred_ideas_epic`, `hanging_epic`, `arch_findings_epic` and `local_full_suite_evidence_tracker`.
 - [ ] **The numbers are rendered into the rule files.**
@@ -30,6 +30,7 @@ This file is the one copy of the checklist. `instructing-agents.md` explains the
 - [ ] **Organisation defaults:** check the Actions settings page for any default workflows your organisation applies.
 - [ ] **Secrets and credentials:** add any keys the project needs through the repository's or harness's secret store.
   They never go in the repository, and setting them is always a manual owner step.
+  If this project syncs from a private `_src_path`, add `UPSTREAM_SRC_READ_TOKEN` (a token with read access to that source) so `review-gate-check.yml`'s SDLC-hold check can clone it; leave it unset for a public source, where the check clones without it as before.
 - [ ] **Revoke the bootstrap token** once the script has run.
 
 ## Harness follow-ups

@@ -66,7 +66,8 @@ LABELS = {
     "release:integrator": ("bfd4f2", "Release notes: an integrator or operator must know"),
     "release:internal": ("ededed", "Release notes: nobody outside the repo would notice"),
     "breaking": ("e11d21", "Integrators must act on upgrade"),
-    "hanging": ("cccccc", "Agreed gap deliberately not worked (owner only)"),
+    "hanging": ("cccccc", "Agreed gap deliberately deferred to a later point (owner only)"),
+    "deferred-accepted-risk": ("bfbfbf", "Known risk the owner decided to accept, not fix (owner only)"),
     "future": ("c5def5", "Owner-deferred idea awaiting a scoping pass"),
     "deferred-arch-finding": ("f9d0c4", "Review-pass finding parked on priority"),
 }
@@ -83,8 +84,9 @@ TRACKERS = {
         "Collects `future` ideas the owner raised and deferred. Starting the feature pipeline on one detaches it "
         "from this epic and removes `future` (`docs/agents/triage-labels.md`, \"Parking labels\").\n\n" + STANDING)),
     "hanging_epic": ("Hanging items", (
-        "Collects `hanging` items: accepted risks and deliberately deferred gaps, each with the owner's recorded "
-        "words and a `Revisit: YYYY-MM-DD` line where one applies. Revisit cadence: set by the owner.\n\n" + STANDING)),
+        "Collects `hanging` items (gaps deliberately deferred to a later point) and `deferred-accepted-risk` items "
+        "(risks the owner decided to accept), each with the owner's recorded words and a `Revisit: YYYY-MM-DD` line "
+        "where one applies. Revisit cadence: set by the owner.\n\n" + STANDING)),
     "arch_findings_epic": ("Deferred architecture findings", (
         "Collects `deferred-arch-finding` items from stage 8 architecture passes and post-merge review runs: "
         "review-sourced findings parked on priority, not owner ideas.\n\n" + STANDING)),

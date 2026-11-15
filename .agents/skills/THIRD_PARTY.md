@@ -26,7 +26,7 @@ Each row's commit is the upstream commit the copy was taken from, or the closest
 |---|---|---|---|
 | `ask-matt` | `skills/engineering/ask-matt/SKILL.md` | `4cfa4cd2ae`, 2026-09-17 | Yes: a supporting file (`PHASE-BOUNDARIES.md`) reworded a reference to a specific AI coding tool to stay tool-agnostic; `SKILL.md`'s own body is unchanged |
 | `claude-handoff` | `skills/in-progress/claude-handoff/SKILL.md` | `321658273c`, 2026-08-19 | Yes: CLAUDE.md citation repointed to `.forge/agent-skills-and-reference.md`; reworded a UI-component reference |
-| `code-review` | `skills/engineering/code-review/SKILL.md` | `13ea86f0b0`, 2026-10-06 | Yes: guard-removal-blind, build-vs-buy, adopted-abstraction-bypass, new-comment and glossary checks in the Standards brief; requirement and lifecycle checks in the Spec brief; the MoSCoW triage table |
+| `code-review` | `skills/engineering/code-review/SKILL.md` | `13ea86f0b0`, 2026-10-06 | Yes: guard-removal-blind, build-vs-buy, adopted-abstraction-bypass, new-comment, glossary and governing-skill checks in the Standards brief; requirement and lifecycle checks in the Spec brief; the MoSCoW triage table |
 | `codebase-design` | `skills/engineering/codebase-design/SKILL.md` | `321658273c`, 2026-08-19 | No |
 | `diagnosing-bugs` | `skills/engineering/diagnosing-bugs/SKILL.md` | `321658273c`, 2026-08-19 | Yes: first-parent bisect guidance for mixed merge and squash history |
 | `domain-modeling` | `skills/engineering/domain-modeling/SKILL.md` | `321658273c`, 2026-08-19 | Yes: `docs/principles.md` as a third home beside the glossary and ADRs, with `PRINCIPLES-FORMAT.md` |
@@ -37,10 +37,10 @@ Each row's commit is the upstream commit the copy was taken from, or the closest
 | `handoff` | `skills/productivity/handoff/SKILL.md` | `d28dfdc39b`, 2026-08-15 | Yes: CLAUDE.md citation repointed to `.forge/agent-skills-and-reference.md` |
 | `implement` | `skills/engineering/implement/SKILL.md` | `386d4ff719`, 2026-07-08 | Yes: a ticket-exists precondition, a per-ticket guard-removal re-read, a release-note label reconciliation step, and an owner-merge pending-note step (opening the PR explicitly, then posting the post-merge-review pending note once a human merges it) |
 | `implement-spec` | `skills/in-progress/implement-spec/SKILL.md` | `5b15a47f2d`, 2026-08-21 | No |
-| `improve-codebase-architecture` | `skills/engineering/improve-codebase-architecture/SKILL.md` | `321658273c`, 2026-08-19 | Yes: step 4's triage-outcome and record-shape citations repointed to `.forge/feature-pipeline.md` and `.forge/process-and-evidence.md` instead of CLAUDE.md and a hardcoded issue number; `HTML-REPORT.md`'s hex colour changed to an `rgb()` value to clear the issue-reference guard |
+| `improve-codebase-architecture` | `skills/engineering/improve-codebase-architecture/SKILL.md` | `321658273c`, 2026-08-19 | Yes: step 4's triage-outcome and record-shape citations repointed to `.forge/feature-pipeline.md` and `.forge/process-and-evidence.md` instead of CLAUDE.md and a hardcoded issue number; `HTML-REPORT.md`'s hex colour changed to an `rgb()` value to clear the issue-reference guard; step 1 gained a stage 8 shared-idiom check for a multi-slice design |
 | `loop-me` | `skills/in-progress/loop-me/SKILL.md` | `321658273c`, 2026-08-19 | No |
 | `migrate-to-shoehorn` | `skills/misc/migrate-to-shoehorn/SKILL.md` | `62f43a1817`, 2026-04-28 | No |
-| `pr` | `skills/in-progress/pr/SKILL.md` | `c55ee46073`, 2026-09-18 | No |
+| `pr` | `skills/in-progress/pr/SKILL.md` | `c55ee46073`, 2026-09-18 | Yes: rewritten to fill `.github/pull_request_template.md`'s own fields rather than carrying a separate template of its own; dropped the upstream "Merge Danger" section (the PR template's own `Door:`/blast-radius line covers it); kept and retitled the diagram and evidence guidance |
 | `prototype` | `skills/engineering/prototype/SKILL.md` | `321658273c`, 2026-08-19 | No |
 | `research` | `skills/engineering/research/SKILL.md` | `321658273c`, 2026-08-19 | No |
 | `resolving-merge-conflicts` | `skills/engineering/resolving-merge-conflicts/SKILL.md` | `321658273c`, 2026-08-19 | No |
@@ -59,11 +59,11 @@ Each row's commit is the upstream commit the copy was taken from, or the closest
 | `wayfinder` | `skills/engineering/wayfinder/SKILL.md` | `321658273c`, 2026-08-19 | Yes: de-numbered illustrative issue references |
 | `wizard` | `skills/engineering/wizard/SKILL.md` | `321658273c`, 2026-08-19 | No |
 | `writing-beats` | `skills/in-progress/writing-beats/SKILL.md` | `321658273c`, 2026-08-19 | No |
-| `writing-for-agents` | `skills/productivity/writing-for-agents/SKILL.md` | `321658273c`, 2026-08-19 | No |
+| `writing-for-agents` | `skills/productivity/writing-for-agents/SKILL.md` | `321658273c`, 2026-08-19 | Yes: description also triggers on `.forge/` rule files |
 | `writing-fragments` | `skills/in-progress/writing-fragments/SKILL.md` | `5c89081d4b`, 2026-08-19 | Yes: reworded a word that collided with the contamination denylist |
 | `writing-shape` | `skills/in-progress/writing-shape/SKILL.md` | `5c89081d4b`, 2026-08-19 | No |
 
-`pr`'s "the shape of the change" section carries a nested attribution: it reproduces the `show-me` skill (HumanLayer, `humanlayer/skills`, https://github.com/humanlayer/skills, `plugins/show-me/skills/show-me/SKILL.md`) almost word for word, aimed at a diff instead of a live conversation, recorded in `pr/CREDITS.md` and in that skill's own frontmatter rather than as a code dependency. `show-me` is MIT licensed (copyright HumanLayer); the licence text is included verbatim at [`licenses/MIT-humanlayer-skills.txt`](./licenses/MIT-humanlayer-skills.txt).
+`pr`'s "Before/After/one-sentence summary" section carries a nested attribution: it reproduces the `show-me` skill (HumanLayer, `humanlayer/skills`, https://github.com/humanlayer/skills, `plugins/show-me/skills/show-me/SKILL.md`) almost word for word, aimed at a diff instead of a live conversation, recorded in `pr/CREDITS.md` and in that skill's own frontmatter rather than as a code dependency. `show-me` is MIT licensed (copyright HumanLayer); the licence text is included verbatim at [`licenses/MIT-humanlayer-skills.txt`](./licenses/MIT-humanlayer-skills.txt).
 
 ## `impeccable` (Apache License 2.0, https://github.com/pbakaus/impeccable)
 

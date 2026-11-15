@@ -1,0 +1,82 @@
+{
+  "version": "0.2.0",
+  "items": [
+    {
+      "id": "652",
+      "refs": [],
+      "breaking": true,
+      "summary": "The `requirements-evidence` pre-commit hook (`check_requirements_evidence.py`) now runs `always_run` over `docs/requirements/requirements-specification.md`'s `**Evidence…:**` paragraphs, checking them against the shape `.agents/skills/requirements-spec/SKILL.md`'s “Evidence” section sets. That file is project-owned, so a sync never rewrites it, and the seeded `scripts/requirements_evidence_baseline.json` arrives empty: an existing project's older free-text Evidence paragraphs fail every commit immediately after syncing. Before the first commit after syncing, either rewrite the specification's Evidence paragraphs to the new shape or seed `scripts/requirements_evidence_baseline.json` with the current failures."
+    },
+    {
+      "id": "644",
+      "refs": [],
+      "breaking": true,
+      "summary": "`template/scripts/check_review_gate.py` now fails a `Review:` Standards or Spec entry (other than the light gate's `n/a`) that does not record `clean-context` (or `clean sub-agent`); `template/.github/workflows/review-gate-check.yml` runs this on every PR event. After syncing, any open PR, and any project-owned brief or template text that dictates the `Review:` wording in other words, fails this check immediately. Update every open PR's body and any such text before relying on the check."
+    },
+    {
+      "id": "666",
+      "refs": [],
+      "breaking": false,
+      "summary": "After syncing, re-paste the text between the markers in `docs/agents/coordinator-core-snippet.md` into the harness's project-instruction field again — the coordinator's reload proof now carries the fetched `origin/main` sha, the self-check always re-fetches rather than trusting an existing copy, and a timer/sibling/owner ping asking to confirm or reload now triggers the full check."
+    },
+    {
+      "id": "598",
+      "refs": [],
+      "breaking": false,
+      "summary": "After syncing, answer (or accept the defaults for) the new `local_full_suite_script` and `local_full_suite_publish_var` Copier questions, which let a project name its own local-full-suite stand-in script and publish-switch environment variable instead of the hard-coded `local-full-suite.sh`/`LOCAL_FULL_SUITE_PUBLISH` names; a project carrying a forge-override entry for this naming mismatch can retire it once this syncs."
+    },
+    {
+      "id": "614",
+      "refs": [],
+      "breaking": false,
+      "summary": "After syncing, create the `deferred-accepted-risk` label (the colour and description `scripts/bootstrap.py`'s `ensure_labels` gives it, since `forge-sync` only creates labels on first generation) and move any `hanging` item that actually records an accepted risk onto it; `hanging` itself now covers only a gap deliberately deferred to a later point in time."
+    },
+    {
+      "id": "619",
+      "refs": [],
+      "breaking": false,
+      "summary": "After syncing, create an `UPSTREAM_SRC_READ_TOKEN` repository secret (a read-only token scoped to the template source) if the project's own `_src_path` is private; the SDLC-wording-hold step in `review-gate-check.yml` reads it when cloning that source, and a sync PR's hold step fails closed in CI without it."
+    },
+    {
+      "id": "369",
+      "refs": [],
+      "breaking": false,
+      "summary": "After syncing, `check_forge_entrypoint.py` now also checks that `AGENTS.md`, where it exists, stays a thin shell (no `##`-or-deeper heading, 300-word cap, no 30+-character line duplicated from `CLAUDE.md`/`.forge/*`); a project whose own `AGENTS.md` has grown real content will need trimming before its next commit passes."
+    },
+    {
+      "id": "653",
+      "refs": [
+        "652",
+        "646"
+      ],
+      "breaking": false,
+      "summary": "After syncing, `docs/software-development-lifecycle.md` carries SDLC-119 (new) and a reworded SDLC-042; `forge-sync` holds the sync PR at this point until the project's own owner approves the new wording (SDLC-117), but expect that hold — it is not a sync failure."
+    },
+    {
+      "id": "642",
+      "refs": [
+        "648"
+      ],
+      "breaking": false,
+      "summary": "After syncing, `template/.forge/feature-pipeline.md.jinja` and `template/.agents/skills/improve-codebase-architecture/SKILL.md` cite `docs/principles.md`, “Don't repeat yourself” by heading; that principle is seeded only into a newly generated project, so an existing project gets the citation without the principle it points at. Adopt the cited wording (it needs the project's own owner's exact-wording approval, SDLC-068) or note where an equivalent principle already lives under a different heading."
+    },
+    {
+      "id": "597",
+      "refs": [],
+      "breaking": false,
+      "summary": "After syncing, an SDLC sync PR (one where `.copier-answers.yml`'s `_commit` moves across a change to upstream's `docs/software-development-lifecycle.md`) must carry a `SDLC upstream changes: <old>..<new> held: ...; current: ...` field on the PR body; `check_sdlc_wording_hold.py` now re-derives what upstream actually changed and fails the hold-check without it. An open sync PR already underway when this syncs needs that field added."
+    },
+    {
+      "id": "678",
+      "refs": [],
+      "breaking": false,
+      "summary": "After syncing, `self-review`'s checklist runs a new “Sync-impact category checklist” before any diff is recorded `release:internal` or `Release note: none`, in a project that itself ships shared process, scaffolding or configuration other repositories pull in on their own schedule; it adds a review step, not a mechanical check."
+    },
+    {
+      "id": "57",
+      "refs": [],
+      "breaking": false,
+      "summary": "After syncing, list this project's shared, git-ignored dependency directories in `scripts/worktree_shared_paths.txt`; stage 0 fills it only for a newly generated project, so an existing project's copy arrives with comments only and `worktree_setup.py` symlinks nothing until the integrator fills it in."
+    }
+  ]
+}

@@ -97,9 +97,10 @@ The parking labels behind them are described in `docs/agents/triage-labels.md`, 
   A bug fix goes ahead of feature work and is built straight off its ticket from a red reproduction loop.
   A feature on the pipeline path starts from whichever stage it has reached.
   A small, already-clear change on the direct path is triaged and built.
-- **Hanging**: a real, agreed gap that is deliberately not being worked on now, such as an accepted risk or something deferred until a named point.
-  Only you can park something as hanging.
-  Hanging items a user could hit are reported as known issues in the release notes, so they are never silently forgotten.
+- **Hanging**: a real, agreed gap that is deliberately not being worked on now because it is deferred until a named point.
+  An accepted risk (one you decide to live with rather than fix) is parked the same way under its own label, `deferred-accepted-risk`.
+  Only you can park something this way.
+  Hanging and accepted-risk items a user could hit are reported as known issues in the release notes, so they are never silently forgotten.
 - **Future**: an idea worth keeping, not yet scheduled or scoped.
   It waits under the deferred-ideas epic until you ask for its scoping pass, at which point it enters the feature pipeline.
 

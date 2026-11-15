@@ -8,19 +8,35 @@ Standalone, standard-library-only:
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import publish_snapshot as ps  # noqa: E402
 from _git_env import clean_git_env  # noqa: E402
 
-SCRIPT = Path(__file__).resolve().parent / "publish_snapshot.py"
+SCRIPTS_DIR = Path(__file__).resolve().parent
+SCRIPT = SCRIPTS_DIR / "publish_snapshot.py"
 PLANTED = "zzplantedterm9"
 NOTES = "# Release notes\n\nThe first release.\n"
+
+
+def scratch_script_root(root: Path) -> Path:
+    """A standalone copy of publish_snapshot.py and its sibling scripts, rooted
+    at `root`, with no committed .theforge-denylist of its own and (being a
+    bare tempdir with no .git) no recognisable remote either, so
+    check-denylist.sh's own "no denylist; skipping" branch fires for real
+    rather than merely being simulated."""
+    scripts = root / "scripts"
+    scripts.mkdir(parents=True)
+    for name in ("publish_snapshot.py", "_git_env.py", "check-denylist.sh", "denylist-path.sh"):
+        shutil.copy(SCRIPTS_DIR / name, scripts / name)
+    return root
 
 
 def git(cwd: Path, *args: str) -> str:
@@ -64,9 +80,18 @@ class Fixture:
         git(self.staging, "tag", tag)
 
     def publish(self, *extra: str, version: str = "v0.1.0", denylist: Path | None = None,
-                env_extra: dict[str, str] | None = None) -> subprocess.CompletedProcess:
-        env = dict(clean_git_env(), THEFORGE_DENYLIST_FILE=str(denylist or self.denylist), TZ="Asia/Tokyo", **(env_extra or {}))
-        cmd = [sys.executable, str(SCRIPT), "--version", version, "--remote", str(self.public),
+                env_extra: dict[str, str] | None = None, script: Path | None = None,
+                no_denylist: bool = False) -> subprocess.CompletedProcess:
+        env = dict(clean_git_env(), TZ="Asia/Tokyo")
+        if no_denylist:
+            # No override at all, so resolution falls through to
+            # ~/.theforge-denylist / the committed file (both absent for a
+            # `script=scratch_script_root(...)` copy).
+            env.pop("THEFORGE_DENYLIST_FILE", None)
+        else:
+            env["THEFORGE_DENYLIST_FILE"] = str(denylist or self.denylist)
+        env.update(env_extra or {})
+        cmd = [sys.executable, str(script or SCRIPT), "--version", version, "--remote", str(self.public),
                "--repo", str(self.staging), "--require-ancestor-of", "HEAD", *extra]
         return subprocess.run(cmd, env=env, capture_output=True, text=True)
 
@@ -222,10 +247,12 @@ class RefusesBeforePushing(unittest.TestCase):
             self.assert_refused_and_empty(fx, result, code=2)
 
     def test_a_missing_denylist_fails_closed(self):
+        """A THEFORGE_DENYLIST_FILE naming a path that does not exist refuses with
+        exit 2, before check-denylist.sh runs at all."""
         with tempfile.TemporaryDirectory() as tmp:
             fx = Fixture(tmp)
             result = fx.publish(denylist=Path(tmp) / "no-such-list")
-            self.assert_refused_and_empty(fx, result)
+            self.assert_refused_and_empty(fx, result, code=2)
 
     def test_an_empty_denylist_fails_closed(self):
         """A list with no terms must not read as 'scanned and clean'."""
@@ -300,6 +327,26 @@ class RefusesBeforePushing(unittest.TestCase):
             self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
             self.assertIn("POST-PUSH SCAN", result.stderr)
 
+    def test_a_publish_with_no_reachable_denylist_at_all_is_refused(self):
+        """No THEFORGE_DENYLIST_FILE, no ~/.theforge-denylist, and no committed
+        .theforge-denylist for the *tool's own* location to find (a standalone
+        copy of the scripts, not this repository's real checkout) --
+        check-denylist.sh's own "no denylist; skipping" branch exits 0 having
+        scanned nothing. Goes red (the publish succeeds) if require_denylist()
+        is neutered entirely, not merely its call site inside scan() -- the
+        print line in publish() calls it too."""
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as home:
+            fx = Fixture(tmp)
+            scratch = scratch_script_root(Path(tmp) / "scratch")
+            result = fx.publish(
+                script=scratch / "scripts" / "publish_snapshot.py",
+                no_denylist=True,
+                env_extra={"HOME": home},
+            )
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn("no denylist to scan against", result.stderr)
+            self.assertEqual(fx.public_commits(), [])
+
 
 class ScanUnits(unittest.TestCase):
     def setUp(self):
@@ -351,6 +398,24 @@ class ScanUnits(unittest.TestCase):
         scratch.mkdir()
         with self.assertRaises(ps.PublishError):
             ps.verify_remote(str(work), scratch)
+
+    def test_scan_refuses_a_missing_denylist(self):
+        """Goes red (scan() would scan nothing and return True) if require_denylist()
+        is removed -- the Python-side half of this gate."""
+        outside = Path(self.tmp.name) / "tree-missing"
+        outside.mkdir()
+        with mock.patch.dict(os.environ, {"THEFORGE_DENYLIST_FILE": str(Path(self.tmp.name) / "no-such-list")}):
+            with self.assertRaises(ps.PublishError):
+                ps.scan([], outside)
+
+    def test_scan_refuses_an_empty_denylist(self):
+        empty = Path(self.tmp.name) / "empty-list"
+        empty.write_text("")
+        outside = Path(self.tmp.name) / "tree-empty"
+        outside.mkdir()
+        with mock.patch.dict(os.environ, {"THEFORGE_DENYLIST_FILE": str(empty)}):
+            with self.assertRaises(ps.PublishError):
+                ps.scan([], outside)
 
     def test_verify_remote_passes_a_clean_repository(self):
         work = Path(self.tmp.name) / "work3"

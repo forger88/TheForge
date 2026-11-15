@@ -43,6 +43,7 @@ _skip_if_exists:
   - docs/adr/README.md
   - docs/tools/document-build.json
   - docs/development/documentation-build.md
+  - scripts/worktree_shared_paths.txt
 
 # Post-generation task: run once, at creation, it creates the GitHub labels
 # and the five standing tracker issues. It skips its GitHub steps (and says
@@ -127,6 +128,18 @@ working_folder:
   help: Where agents keep mutable working state (reports, handover notes) outside the repo.
   default: the harness's shared project folder
 
+local_full_suite_script:
+  type: str
+  help: Path to the project's own local-full-suite stand-in script (stage 0 confirms or changes it); watch-main-ci's Routine 2 names and runs it.
+  default: scripts/local-full-suite.sh
+  validator: "{% if not (local_full_suite_script | regex_search('^[A-Za-z0-9_][A-Za-z0-9._-]*(/[A-Za-z0-9_][A-Za-z0-9._-]*)*$')) %}local_full_suite_script must be a relative path with no leading '/' and no '..' segment (letters, digits, '.', '_', '/', '-' only, each segment starting with a letter, digit or '_').{% endif %}"
+
+local_full_suite_publish_var:
+  type: str
+  help: Env var that gates publishing the local-full-suite stand-in's commit statuses (stage 0 confirms or changes it).
+  default: LOCAL_FULL_SUITE_PUBLISH
+  validator: "{% if not (local_full_suite_publish_var | regex_search('^[A-Z_][A-Z0-9_]*$')) %}local_full_suite_publish_var must be a shell-identifier-shaped env var name (upper-case letters, digits, underscore; not starting with a digit).{% endif %}"
+
 # Standing tracker issue numbers. Filled by scripts/bootstrap.py after creation;
 # leave empty when generating.
 post_merge_review_tracker:
@@ -182,3 +195,8 @@ lfs_ref:
   type: str
   when: false
   default: "{% if local_full_suite_evidence_tracker %}#{{ local_full_suite_evidence_tracker }}{% else %}(its number is local_full_suite_evidence_tracker in .copier-answers.yml){% endif %}"
+
+lfs_status_context:
+  type: str
+  when: false
+  default: "{{ local_full_suite_script.split('/')[-1].rsplit('.', 1)[0] }}"

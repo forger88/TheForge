@@ -22,4 +22,4 @@ Guides: <the user guide (user-visible change) and the operator guide (configurat
 
 Door: <one-way or two-way>. Blast radius: <one word, then a line if it needs one>
 
-Review: Standards: <performer, tier[, model]> — <what the axis found and how it was addressed, or `n/a (light gate: <reason>)`>. Spec: <performer, tier[, model]> — <same, against the design doc slice or the issue, or `n/a (light gate: <reason>)`>. Self-review: <performer, tier> — <parts covered; found/addressed>.
+Review: Standards: <performer, tier[, model], clean-context> — <what the axis found and how it was addressed, or `n/a (light gate: <reason>)`>. Spec: <performer, tier[, model], clean-context> — <same, against the design doc slice or the issue, or `n/a (light gate: <reason>)`>. Self-review: <performer, tier, clean-context or the builder's own> — <parts covered; found/addressed>.

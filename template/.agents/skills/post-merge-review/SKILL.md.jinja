@@ -26,6 +26,9 @@ When the owner or the person merges a PR an agent opened instead (an `implement`
 Pending post-merge review: PR #<PR number> for #<ticket number>, merged as <short sha>.
 ```
 
+Post the marker and sentence above exactly as shown, with only the PR, ticket and sha values filled in and nothing else changed; `queue-sweep` check 11(a) and this skill's own Procedure step 1 key off that marker to find a pending note and match it to a PR.
+Extra context worth recording for the reviewer (which PR of a multi-PR ticket, what the diff covers, a size note) goes as separate prose *after* this block, never replacing or folding into it.
+
 The note is a comment, never an edit to the tracker's body and never a sub-issue, because sub-issues are findings.
 A note is pending until a run's archive comment (step 7) lists its PR as covered; that list is the record, not the per-PR verdicts.
 The notes are the review's input record; the watermark query (step 1) still decides the window, and the notes cross-check it.
@@ -45,6 +48,7 @@ On a public repository anyone can comment, and an unauthenticated note could add
   4. **Release on every exit:** each slot, claim, lock or counter the surviving lines take is released on every path out (return, raise, cancel, timeout).
   5. **Ordering under concurrency:** two requests interleaving at each `await` the surviving lines add.
   6. **Operation state across an identity switch:** a pending operation whose user, account or workspace changes before it completes is cancelled or dropped, never applied to the new context.
+- **Governed artefacts.** A surviving line in a file the artefact map lists (`.forge/agent-skills-and-reference.md`, "Artefacts and the skills that govern them") is checked against that file's governing skill, and against the file's own Conventions section where it has one, the same as the self-review's check (SDLC-119). A Conventions line that contradicts the skill is itself a finding. A break in form alone is a Should, never a Must: the document is wrong in form, nothing is broken.
 - Everything else follows the MoSCoW definitions in `.agents/skills/code-review/SKILL.md`.
 
 ## Security axis
@@ -113,7 +117,7 @@ The pass reviews files on current `main`, not PRs, so nothing gets reviewed twic
      > If your self-reported model is below the mapped model, do no other work on this ticket or stage: report to the coordinator and the owner that this thread must be restarted on the right model, and stop there.
      > A thread cannot switch its own model, which is why the gate stops and reports rather than continuing or switching itself.
      > Running on a model above the mapped one is not a problem: note it in one line and proceed.
-   - Give each reviewer: its batch's file list; each file's surviving-line ranges and which PRs contributed each range; the contributing PRs' unresolved review threads for those ranges, to verify independently rather than trust; the MoSCoW definitions, the grading rules and the security axis above, naming the security axis explicitly; an instruction to review each file exactly once, covering every surviving line and crediting each finding to the PRs whose lines it falls in; an instruction to confirm every finding is still present on current `origin/main`, cite file and line, and include a repro where feasible; and an instruction not to post anything or edit any code.
+   - Give each reviewer: its batch's file list; each file's surviving-line ranges and which PRs contributed each range; the contributing PRs' unresolved review threads for those ranges, to verify independently rather than trust; the MoSCoW definitions, the grading rules and the security axis above, naming the security axis explicitly; for each file in its batch that the artefact map lists, its governing skill and the form-rule sections the row names, naming this check explicitly; an instruction to review each file exactly once, covering every surviving line and crediting each finding to the PRs whose lines it falls in; an instruction to confirm every finding is still present on current `origin/main`, cite file and line, and include a repro where feasible; and an instruction not to post anything or edit any code.
    - If no sub-agent dispatch is available, don't silently substitute a single-session partial pass: the archive comment says exactly which files and subsystems were covered and which were left, and the watermark doesn't advance past the uncovered portion.
    - **Merge-written text is its own batch, not split across the subsystem batches above.** It isn't file-scoped, so giving every batch the whole window's PR titles, bodies, commit messages and commit identities would review each one several times over. Dispatch one reviewer at review-tier over the window's merge-written text, giving it every in-window PR's title and body plus `git log --format='%H%n%an <%ae>%n%cn <%ce>%n%B%n---' <sha>..origin/main` (substituting the watermark line's own `<sha>`), the security axis's merge-written-text question above — naming author and committer identity explicitly as part of it, not only the message body — and the same MoSCoW and grading rules as the other batches.
    - **Dispatch each batch against its own private worktree**, never the thread's shared checkout, whenever a local full-suite run or another batch might be running there.

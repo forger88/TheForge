@@ -211,6 +211,90 @@ class SeedCheckScopedToTemplateMode(unittest.TestCase):
         self.assertFalse(any("never-default.md" in p for p in problems))
 
 
+class AgentsHasSubHeading(CompliantFixture):
+    def test_a_heading_in_agents_md_fails(self) -> None:
+        _write(
+            self.root / "AGENTS.md",
+            "Read .forge/entrypoint.md and every file it imports.\n\n## A sub-heading\n",
+        )
+        self.assertTrue(any("AGENTS.md" in p and "heading" in p for p in self.problems()))
+
+
+class AgentsOverWordCap(CompliantFixture):
+    def test_agents_md_past_the_word_cap_fails(self) -> None:
+        body = " ".join(f"word{i}" for i in range(check_forge_entrypoint.AGENTS_MAX_WORDS + 1))
+        _write(self.root / "AGENTS.md", f"Read .forge/entrypoint.md and every file it imports.\n\n{body}\n")
+        self.assertTrue(any("AGENTS.md" in p and "word" in p for p in self.problems()))
+
+
+class AgentsDuplicatesForgeText(CompliantFixture):
+    def test_a_30_char_line_shared_with_claude_md_fails(self) -> None:
+        shared_line = "This sentence is forge-authored rule text, not project text.\n"
+        _write(
+            self.root / "CLAUDE.md",
+            "# Working on example\n\n@.forge/entrypoint.md\n\n" + shared_line,
+        )
+        _write(
+            self.root / "AGENTS.md",
+            "Read .forge/entrypoint.md and every file it imports.\n\n" + shared_line,
+        )
+        problems = self.problems()
+        self.assertTrue(any("AGENTS.md" in p and "CLAUDE.md" in p for p in problems))
+
+    def test_a_30_char_line_shared_with_a_forge_file_fails(self) -> None:
+        shared_line = "This sentence is forge-authored rule text, not project text.\n"
+        _write(self.root / "AGENTS.md", "Read .forge/entrypoint.md and every file it imports.\n\n" + shared_line)
+        _write(self.root / ".forge" / "review-gate.md", "The review gate rule.\n\n" + shared_line)
+        problems = self.problems()
+        self.assertTrue(any("AGENTS.md" in p and "review-gate.md" in p for p in problems))
+
+
+class CompliantWithTitleHeading(CompliantFixture):
+    """An `AGENTS.md` whose only heading is its title line (a single `#`) must
+    keep passing -- without this, a regex loosened to also match a bare `#`
+    would have no unit test go red, only the root hook's own real file."""
+
+    def test_a_single_h1_title_does_not_trip_the_heading_check(self) -> None:
+        _write(
+            self.root / "AGENTS.md",
+            "# Agents working on example\n\nRead .forge/entrypoint.md and every file it imports.\n",
+        )
+        self.assertEqual(self.problems(), [])
+
+
+class OverLongAgentsWithSubHeadings(unittest.TestCase):
+    """A restated-rules shape -- several `##` bullet sections, well past the
+    word cap -- confirms both the heading check and the word cap fire
+    together on the kind of drift-prone restatement this feature guards
+    against, using an invented example rather than this repository's own
+    history."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        _write_compliant_fixture(self.root)
+        section = (
+            "## A restated rule\n\n"
+            "This paragraph stands in for a condensed restatement of a project rule, "
+            "repeated here only to push the fixture past the word cap for this test, "
+            "with enough padding words that the total comfortably clears three hundred. "
+        )
+        _write(
+            self.root / "AGENTS.md",
+            "# Agents working on example\n\n"
+            "Read .forge/entrypoint.md and every file it imports.\n\n" + section * 15,
+        )
+
+    def test_the_restated_rules_shape_trips_the_heading_check(self) -> None:
+        problems = check_forge_entrypoint.problems(self.root, False)
+        self.assertTrue(any("AGENTS.md" in p and "heading" in p for p in problems))
+
+    def test_the_restated_rules_shape_trips_the_word_cap(self) -> None:
+        problems = check_forge_entrypoint.problems(self.root, False)
+        self.assertTrue(any("AGENTS.md" in p and "word" in p for p in problems))
+
+
 class HookRefusesMissingLine(unittest.TestCase):
     """Exercises the script as a subprocess, the shape the pre-commit hook runs
     it in, on a fixture missing the entrypoint line -- the non-zero exit the hook relies on."""

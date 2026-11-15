@@ -534,7 +534,8 @@ change turns out to be wrong.
 
 The merge gate is a set of reviews the implementer runs on their own
 diff, in two parts. First a **code review** along two axes: **Standards** (does the
-diff follow this repo's conventions and principles) and **Spec** (does it
+diff follow this repo's conventions and principles, and, where it changes
+an artefact a skill governs, that skill) and **Spec** (does it
 match the ticket and the requirements it touches). Then a **self-review**
 of what neither axis is scoped to: every other caller and builder of what
 the diff touches, reuse over recreation, both sides of any cap, the whole
@@ -555,9 +556,11 @@ the post-merge review (section 7) is the independent second review.
 - **SDLC-042**: The merge gate is the builder's own review of the diff.
   The full gate is the default and applies to every change unless the
   light gate clearly applies. The full gate is a code review on the
-  Standards and Spec axes, run by clean-context sub-agents the builder
-  starts, followed by a self-review of every other path the diff touches,
-  which the builder may run themselves. The light gate, the self-review
+  Standards and Spec axes, each run as an independent, clean-context
+  review axis, followed by a self-review of every other path the diff touches,
+  which the builder may run themselves. For an artefact a skill governs,
+  the Standards axis also checks the change against that skill
+  (SDLC-119). The light gate, the self-review
   alone, applies only to a change that meets every one of these
   conditions: it is a prose-only documentation edit; it changes no rule,
   requirement or behaviour; and it touches no text carried in the
@@ -606,6 +609,13 @@ the post-merge review (section 7) is the independent second review.
   changes to the repo, not other agent actions, and relaxes no review a
   change must pass, including the review of process changes against this
   document (SDLC-005).
+- **SDLC-119**: Where a skill sets the form or content of an artefact (a
+  document, a test), that skill is the artefact's standard.
+  Every change to the artefact follows it, and the Standards axis of the
+  code review checks the change against it, alongside the repo's
+  conventions and principles. A change on the light gate, which has no
+  Standards axis, is checked against it in the self-review, and the
+  post-merge review checks merged changes against it too (SDLC-064).
 
 ## 6. Test strategy
 

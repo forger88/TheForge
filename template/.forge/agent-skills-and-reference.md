@@ -9,7 +9,7 @@ Then read the matching `SKILL.md` and follow it; there is no tool invocation for
 
 `.agents/skills/self-review/SKILL.md` and the other skills marked `disable-model-invocation: true` are reference material or owner-invoked procedures: read them when a rule points there.
 
-The full skill set, including `impeccable` (UI review), `improve-codebase-architecture` (the stage 8 pass), `prototype` and `release-notes`, ships with the template rather than being installed from upstream later.
+The full skill set, including `impeccable` (UI review), `improve-codebase-architecture` (the stage 8 pass), `prototype` and `release-notes`, ships with TheForge rather than being installed from upstream later.
 `skills-lock.json` records the pinned upstream source for each skill taken from elsewhere; `THIRD_PARTY.md` carries the matching licence credit.
 A rule that names a skill and finds it missing is a hard stop, as for any other skill (`.forge/review-gate.md`).
 
@@ -38,9 +38,28 @@ The canonical labels are `needs-triage`, `needs-info`, `needs-grilling`, `ready-
 The project uses a single-context layout: `CONTEXT.md` at the repo root, `docs/adr/` and `docs/principles.md` (`docs/agents/domain.md`).
 Read `docs/principles.md` before any design decision; `code-review`'s Standards axis and the design-exit pass check against it, and a principle lands there, verbatim, only once the owner approves its exact wording; a rewording or removal needs the same approval (SDLC-068).
 
-## Writing for agents
+## Artefacts and the skills that govern them (Default)
 
-A change to a skill, `CLAUDE.md`, `AGENTS.md` or a `.forge/` file follows `.agents/skills/writing-for-agents/SKILL.md`.
+A skill that sets the form or content of an artefact is that artefact's standard (SDLC-119).
+Every change to a path below follows its governing skill, whatever the change is for, a closing-step status edit included.
+The code review's Standards axis checks the change against the skill's form rules (`.agents/skills/code-review/SKILL.md`); on the light gate the self-review does, and the post-merge review checks again after merge (`.forge/self-review.md`, `.forge/post-merge-review.md`).
+Only the skills this table names are standards; a procedural skill, one that says how to run a task rather than what an artefact looks like, is not.
+A document's own Conventions section restates its governing skill and may add this project's own choices, such as its ID blocks, but never contradicts it; where they disagree, the skill wins and the document is the thing to fix.
+"The artefact map" means this table together with any row a project's own `CLAUDE.md` adds under its own project section (below); every reference elsewhere to the artefact map, in the code review, the self-review and the post-merge review, covers both.
+
+| Artefact | Governing skill | Form rules |
+|---|---|---|
+| `docs/requirements/requirements-specification.md` | `requirements-spec` | "What this produces" |
+| `CONTEXT.md`, `CONTEXT-MAP.md` (any context document) | `domain-modeling` | `CONTEXT-FORMAT.md` |
+| `docs/principles.md` | `domain-modeling` | `PRINCIPLES-FORMAT.md` |
+| `docs/adr/*.md` | `domain-modeling` | `ADR-FORMAT.md` |
+| `docs/security/**` | `security-docs` | the mode the change runs in (bootstrap, delta, reconcile) |
+| `docs/release-notes.md` | `release-notes` | "Section shape" |
+| A skill's files under `.agents/skills/`, `CLAUDE.md`, `AGENTS.md`, `.forge/*.md` | `writing-for-agents` | the whole skill; `SKILL-MECHANICS.md` for a skill's frontmatter |
+
+No skill governs the PR body: `.github/pull_request_template.md`'s own convention is this artefact's standard instead, not by a skill (owner decision, 2026-11-14); `scripts/check_review_gate.py` mechanically checks only its `Review:` field against the review gate, and the rest of the template is enforced by the review gate's own judgement call, outside this mechanism.
+A project's own test files are a governed artefact too, mapped by glob rather than by a fixed path, since test paths and conventions vary per project and per stack.
+A project adds a row, or maps its own test-file glob(s) (for example `**/*.test.ts`, `tests/**/test_*.py`) to `tdd`'s `tests.md` as the form rules, for an artefact of its own under its own project section in `CLAUDE.md`, never in this file (`.forge/forge-overrides.md`).
 
 ## Third-party files are credited in the same PR (Default)
 

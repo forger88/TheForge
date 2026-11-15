@@ -433,12 +433,30 @@ class ConstraintGuards(unittest.TestCase):
         core = _repo_text(".forge/coordinator-core.md")
         for label, text in (("snippet", snippet), ("core", core)):
             self.assertIn("in full yourself, first line to last, with your own file-read tool, in this session", text, label)
-            self.assertIn("copy only and report nothing but success or failure", text, label)
+            self.assertIn("report nothing but the fetched commit sha and the copy's timestamp", text, label)
             self.assertIn("Mid-file check word:", text, label)
-            self.assertIn("Proof: codeword XXXX, mid-file check YYYY", text, label)
+            self.assertIn("Proof: codeword XXXX, mid-file check YYYY, origin/main sha Z", text, label)
             self.assertIn("a word seen in a partial or tail read is not proof", text, label)
             self.assertIn("tell the owner plainly that the earlier proof was not valid", text, label)
             self.assertIn("posted, or were about to post, the proof without that read", text, label)
+
+    def test_fetch_always_runs_never_a_cached_copy(self) -> None:
+        """TheForge's coordinator-core ADR, freshness constraint: a copy already present,
+        or a claim it was refreshed, never counts as current on its own."""
+        snippet = " ".join((ccc.snippet_text(_repo_text_raw("docs/agents/coordinator-core-snippet.md")) or "").split())
+        core = _repo_text(".forge/coordinator-core.md")
+        for label, text in (("snippet", snippet), ("core", core)):
+            self.assertIn("never counts as current on its own", text, label)
+
+    def test_confirm_or_reload_ping_means_the_full_check(self) -> None:
+        """TheForge's coordinator-core ADR, reload-ping constraint: a timer, sibling-thread or
+        owner ping asking to confirm or reload the coordinator's instructions runs the full
+        self-check, not a restated codeword."""
+        snippet = " ".join((ccc.snippet_text(_repo_text_raw("docs/agents/coordinator-core-snippet.md")) or "").split())
+        core = _repo_text(".forge/coordinator-core.md")
+        for label, text in (("snippet", snippet), ("core", core)):
+            self.assertIn("asks you to confirm or reload your instructions", text, label)
+            self.assertIn("never a restatement of a codeword already in context", text, label)
 
     def test_constraint_8_core_keeps_the_timer_helper_and_fails_loudly_sentences(self) -> None:
         core = _repo_text(".forge/coordinator-core.md")

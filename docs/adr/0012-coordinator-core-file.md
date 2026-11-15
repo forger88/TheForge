@@ -1,6 +1,6 @@
 # ADR-0012: One coordinator-core file, loaded by the coordinator alone, replaces the generated condensed copy
 
-**Status:** accepted; supersedes ADR-0011's project-instructions role; constraint 4 superseded by ADR-0013
+**Status:** accepted; supersedes ADR-0011's project-instructions role; constraint 4 superseded by ADR-0013, then again by ADR-0014, which also adds constraints 11 and 12
 
 ## Context
 
@@ -36,6 +36,8 @@ They must survive every later edit, and changing one means superseding this ADR.
 9. Helper threads with one obvious outcome run at mechanical-tier.
 10. The file duplicates its sources on purpose (DRY exemption).
    Every source file carries the forward-reference sentence.
+11. A copy already present, or a claim that one was refreshed, is never treated as current: every run of the start-of-session self-check re-runs the fetch itself (ADR-0014).
+12. A timer, sibling-thread or owner ping asking the coordinator to confirm or reload its instructions runs the full self-check, not a restatement of a codeword already in context (ADR-0014).
 
 The snippet also carries the owner's sentence for a coordinator that has lost track of the codeword: it reloads the core before doing anything else.
 
@@ -55,6 +57,8 @@ The tests are in `template/scripts/test_check_coordinator_core.py` (run here dir
 | 8 | `ConstraintGuards.test_constraint_8_core_keeps_the_timer_helper_and_fails_loudly_sentences` |
 | 9 | `ConstraintGuards.test_constraint_9_core_keeps_the_mechanical_tier_helper_sentence` |
 | 10 | Review only: that the file duplicates its sources on purpose is the DRY exemption, a judgement about which duplication is allowed |
+| 11 | `ConstraintGuards.test_fetch_always_runs_never_a_cached_copy` (ADR-0014) |
+| 12 | `ConstraintGuards.test_confirm_or_reload_ping_means_the_full_check` (ADR-0014) |
 
 The root-only `lock` check guards the core against drift from the shared sources it condenses; it is not one of the constraints' guards and is not shipped to consumers.
 

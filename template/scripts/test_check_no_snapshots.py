@@ -124,6 +124,22 @@ class DependencyFiles(unittest.TestCase):
                 with self.subTest(lock=lock, entry=entry):
                     self.assertEqual(self.check(lock, LOCK.format(entry=entry)), 1)
 
+    def test_a_banned_name_in_another_packages_extras_passes(self) -> None:
+        # A TOML lock file's own `[package.extras]` block can name a banned
+        # package as another package's optional, never-installed extra,
+        # quoted the same way a real pin would be. Only a package's own
+        # `name = "..."` line is a real dependency.
+        extras_lock = (
+            '[[package]]\n'
+            'name = "markdown-it-py"\n'
+            'version = "3.0.0"\n\n'
+            "[package.extras]\n"
+            'testing = ["coverage", "pytest", "pytest-cov", "pytest-regressions"]\n'
+        )
+        for lock in ("uv.lock", "poetry.lock", "pdm.lock"):
+            with self.subTest(lock=lock):
+                self.assertEqual(self.check(lock, extras_lock), 0)
+
     def test_a_snapshot_package_in_a_pipfile_fails(self) -> None:
         self.assertEqual(self.check("Pipfile", '[dev-packages]\nsyrupy = "==4.9.1"\n'), 1)
         self.assertEqual(self.check("Pipfile.lock", '{"develop": {"syrupy": {"version": "==4.9.1"}}}\n'), 1)

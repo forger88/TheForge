@@ -38,7 +38,7 @@ The human directing the agents is "the owner" or "the user", never a named perso
 Every change goes through three checks before it is pushed or merged, including an upstream-first refinement back-ported from a consuming project:
 
 1. **A mechanical scan.** The pre-commit hooks in `.pre-commit-config.yaml` run `scripts/check-no-issue-refs.sh` (an `#NNN`-style reference pattern) and `scripts/check-denylist.sh` (a case-insensitive grep against a denylist; see `scripts/denylist-path.sh` for which one). By default that is `.theforge-denylist`, this private staging repository's own committed list of the owner's standing terms (name, email addresses, other projects' names); `$THEFORGE_DENYLIST_FILE` or `~/.theforge-denylist`, when set, unions with that default for the one scan rather than replacing it — a maintainer back-porting from a real project points it at that project's own terms, which get checked alongside the owner's committed ones, not instead of them (see "Running the contamination scan" below).
-   `.theforge-denylist` itself must never ship under `template/`, into a generated project: `scripts/check-denylist-not-shipped.sh` (an always-run pre-commit hook checking the static tree) and the `denylist-not-shipped-render` hook (`scripts/test_denylist_not_shipped.py`, scoped to changes under `template/`, `copier.yml` or the denylist scripts themselves, since a full render is slower than a filesystem scan) guard that, because a public list of what to hide would itself be a leak. `scripts/publish_snapshot.py` also drops every `.theforge-denylist*` file from a public snapshot, and `scripts/test_publish_snapshot.py` goes red if it stops; `docs/security/threat-model.md` §8 names the remaining gap, that the first publish has not run yet.
+   `.theforge-denylist` itself must never ship under `template/`, into a generated project: `scripts/check-denylist-not-shipped.sh` (an always-run pre-commit hook checking the static tree) and the `denylist-not-shipped-render` hook (`scripts/test_denylist_not_shipped.py`, scoped to changes under `template/`, `copier.yml` or the denylist scripts themselves, since a full render is slower than a filesystem scan) guard that, because a public list of what to hide would itself be a leak. `scripts/publish_snapshot.py` also drops every `.theforge-denylist*` file from a public snapshot, and `scripts/test_publish_snapshot.py` goes red if it stops.
    `.copier-answers.yml`, `.forge/` and `.agents/skills/` are excluded from `no-issue-refs` and `denylist`, since the retrofit that gave this repository its own root `CLAUDE.md` import renders those paths from `template/` with real tracker numbers and the owner account (see `docs/forge-overrides.md`); `template/` itself, which produced them, stays scanned.
    `docs/release-notes.md` is a different case: it legitimately cites this repository's own merged PR numbers by design (its entries cite the PRs they describe, as a release tag's message always has), so `no-issue-refs` runs against it in `--warn` mode only, the same semantics the tagging procedure above already used for the tag's notes file before they were committed; `denylist` still runs on it in its normal failing mode, since a release line should never need a denylisted term.
 2. **A read-through by a fresh, context-free reviewing agent.** Start a sub-agent with no history of the source project and no briefing beyond this rule, give it the diff, and ask it to list every term or example that looks oddly specific.
@@ -75,7 +75,7 @@ If you are working from a fork, add an `upstream` remote pointing at either `htt
 - **The neutrality axis.** Every reviewer's brief names it explicitly, alongside the security axis; a brief that leaves it implied gets a review that skips it, and a neutrality miss is graded a Must (as above).
 - **An extra cadence trigger.** A pass also runs before each snapshot of this repository's files into the public TheForge repository, since that is the point an unreviewed merge costs the most, on top of the standing ~10-PR/2-3-day cadence the imported file already states. The cadence's owner is the Main Health TheForge thread (ADR-0010).
 - **Interim health routine.** Until this repository is a consumer of its own template (ADR-0009), it has no CI for Main Health TheForge to watch, so each time the post-merge review routine fires, Main Health TheForge runs `pre-commit run --all-files` on `main`'s head (which includes `check-render`) and reports a red result the way a consumer's Main Health reports red CI. In the same firing it posts, as a comment on the tracker and never an edit to its body, any pending note a merge to `main` is missing (ADR-0010's pending-note backstop).
-- **Where this repository still differs from what it ships.** It has no requirements specification of its own yet, so a review here checks a diff against `CLAUDE.md`/`AGENTS.md` and the ADRs in place of a spec, until the stage 0 follow-up gives it one. (This retrofit's own `ensure_trackers` run created the "Deferred architecture findings" epic (`arch_findings_epic` in `.copier-answers.yml`) that `.forge/post-merge-review.md` already names, so the earlier "no architecture-findings epic" exception no longer applies; it has no numbered SDLC document yet either, which is a separate, still-open gap tracked for the stage-0 follow-up, not this exception.)
+- **Where this repository still differs from what it ships.** It has no requirements specification of its own yet, so a review here checks a diff against `CLAUDE.md` and the ADRs in place of a spec, until the stage 0 follow-up gives it one. (This retrofit's own `ensure_trackers` run created the "Deferred architecture findings" epic (`arch_findings_epic` in `.copier-answers.yml`) that `.forge/post-merge-review.md` already names, so the earlier "no architecture-findings epic" exception no longer applies; it has no numbered SDLC document yet either, which is a separate, still-open gap tracked for the stage-0 follow-up, not this exception.)
 
 ### Tagging a release of this repository (Default)
 
@@ -149,6 +149,48 @@ This repository's tags won't carry over to the planned fresh public
 repository; this procedure has to keep working in whichever repository
 consumers end up syncing from, once that migration happens.
 
+### Who counts as the "user" in this repository's own release notes (Default)
+
+`.agents/skills/release-notes/SKILL.md` writes for a generated project
+with real end users distinct from whoever adopts or operates it — a
+service, an app, a tool someone other than the integrator runs. TheForge
+has no such split: its shipped deliverable *is* the skills, `.forge/*`
+rules and guard scripts a downstream repository's own agents follow, so
+the downstream repository owner who runs `forge-sync` is both this
+project's "user" (experiences what those agents do, day to day) and its
+"integrator" (takes the sync-time actions "For integrators" lists). For
+this repository's own `docs/release-notes.md`, "user" means that
+downstream owner, never an end user of whatever the downstream project
+itself builds.
+
+A change to a shipped skill, `.forge/*` file or guard script is
+Enhancement-worthy whenever it changes what the downstream owner's own
+agents do, check or benefit from — a more reliable coordinator reload, a
+review axis that no longer skips silently, a skill that stops drifting
+from its own template — even when nothing at sync time requires the
+owner to act. A PR's `Requirements: none (internal)` is about
+requirement-traceability for this repository's own tickets; it says
+nothing about release-notes user-visibility, and `release-notes` step 3's
+"Everything else is internal... agent skills..." default does not apply
+here on that basis alone. Judge each row by whether the downstream owner
+would notice or benefit from it, the same user-visibility test the skill
+already applies to a generated project's own users; a row stays internal
+only when it is genuinely invisible to that owner (a wording tidy with no
+behaviour change, a root-only file that never ships, this repository's own
+process housekeeping).
+
+This repository's user-facing areas, for `release-notes`'s "Section
+shape" grouping: Review and merge gate; Coordinator and orchestration;
+Feature pipeline and tickets; Release process; Security and threat
+model; Toolchain and guards.
+
+**Why:** an early release draft shipped a blank Enhancements section even
+though its range held over a dozen `template/`-shipped changes a
+downstream owner directly benefits from; the drafting agent, with no
+definition of "user" for a project shaped like this one, fell back to "no
+new UI capability" and lumped every internally-ticketed skill change into
+the internal bucket.
+
 ### Contributing to `template/`
 
 - **Forge-owned rule files** live under `template/.forge/`, one topic per file, one sentence per line.
@@ -163,6 +205,7 @@ consumers end up syncing from, once that migration happens.
   Standing tracker numbers are filled after generation, so text refers to them through the computed `*_ref` variables in `copier.yml`, never a literal number.
 - **Check a change renders.** Run `scripts/check-render.sh` before every push that touches `template/` or `copier.yml`: it renders the template, stages the render as a project's first commit would, then runs the render's own guard-script tests and pre-commit hooks against it, so a broken guard is caught here instead of shipped to every consumer who runs `copier copy` next. For a quick manual look at the rendered output instead, `copier copy --trust --defaults --skip-tasks --vcs-ref HEAD . /tmp/forge-render-check` from a clean checkout and read what you changed (`--vcs-ref HEAD`, not the default, or Copier checks out the latest tag over the working tree once one exists).
 - **Credit third-party material** in `THIRD_PARTY.md` and `template/.agents/skills/THIRD_PARTY.md`, with its licence text alongside, in the same change that adds it.
+- **`template/docs/principles.md` needs the owner's approval too.** SDLC-068's owner-approval requirement for a principle's exact wording applies to this file exactly as it applies to this repository's own `docs/principles.md`, because this file *is* a downstream project's `docs/principles.md` before Copier variable substitution — a wording seeded here lands verbatim in every project generated from it, with no further review gate before that happens (owner decision, 2026-11-08). This is in addition to, not instead of, the ordinary review gate and the neutrality back-porting steps below.
 
 ### Back-porting from a consuming project (upstream first)
 

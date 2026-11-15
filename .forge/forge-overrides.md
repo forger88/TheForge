@@ -22,6 +22,7 @@ They are pure data, so a project edits them as part of normal work.
 - `scripts/coverage_baseline.json`
 - `scripts/dead_code_baseline.json`
 - `scripts/module_size_allowlist.json`
+- `scripts/requirements_evidence_baseline.json`
 - `.gitignore`
 
 A `.gitignore` edit that hides a guard's file from the repository is still a review finding.

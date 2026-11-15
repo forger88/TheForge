@@ -51,6 +51,7 @@ A build-tier thread that needs design-tier or review-tier work done hands that w
 
 Design, build and independent review are kept in separate hands where the harness allows it.
 The builder reviews its own work at merge, starting clean-context sub-agents for part of it; the post-merge review and the architecture pass are never run by the agent whose work they cover.
+A builder that cannot start those sub-agents asks the thread that started it to start them on its behalf, and that thread never reviews the diff itself, nor merges a PR whose gate steps are not recorded on it (`.forge/review-gate.md`, "A builder with no sub-agent tool asks its parent for the review").
 
 ## Tier gate
 

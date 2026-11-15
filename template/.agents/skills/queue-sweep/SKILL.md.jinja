@@ -88,9 +88,9 @@ Report as gaps:
 - (a) a closed pass ticket whose feature has no matching triage comment;
 - (b) a Strong bullet with no issue reference;
 - (c) a referenced issue that is open with no ready label (`gh api $R/issues/<N> --jq '[.labels[].name]'`);
-- (d) any other issue the triage comment references that carries `needs-decision` (a Strong bullet's own referenced issue is (e) below, never this clause), that is open, is not labelled `hanging`, `future` or `deferred-arch-finding`, and is not among the feature's sub-issues (`gh api --paginate "$R/issues/<feature>/sub_issues?per_page=100"`): the pass must file these as tracker sub-issues (`.forge/feature-pipeline.md`, stage 8).
+- (d) any other issue the triage comment references that carries `needs-decision` (a Strong bullet's own referenced issue is (e) below, never this clause), that is open, is not labelled `hanging`, `deferred-accepted-risk`, `future` or `deferred-arch-finding`, and is not among the feature's sub-issues (`gh api --paginate "$R/issues/<feature>/sub_issues?per_page=100"`): the pass must file these as tracker sub-issues (`.forge/feature-pipeline.md`, stage 8).
   A closed issue is fine; a parked one is fine only once a decision comment from the owner is on it (`.forge/feature-pipeline.md`, "A ticket is resolved when") — check with `gh api --paginate "$R/issues/<n>/comments?per_page=100" --jq '.[] | select(.author_association == "OWNER")'`, and treat no match as a gap: a ticket a thread parked and detached on its own, with no owner decision comment, is still a gap.
-- (e) a Strong bullet's referenced issue that is open and labelled `hanging`, `future` or `deferred-arch-finding`: a Strong finding is fixed or escalated, never parked (owner decision, 2026-11-02), so this is a gap whatever decision comment is on it — (d)'s parking exemption, and its decision-comment check, apply only to a `needs-decision` ticket, never to a Strong finding's own issue.
+- (e) a Strong bullet's referenced issue that is open and labelled `hanging`, `deferred-accepted-risk`, `future` or `deferred-arch-finding`: a Strong finding is fixed or escalated, never parked (owner decision, 2026-11-02), so this is a gap whatever decision comment is on it — (d)'s parking exemption, and its decision-comment check, apply only to a `needs-decision` ticket, never to a Strong finding's own issue.
 
 A referenced issue that is closed is fine: it was actioned.
 
@@ -153,7 +153,7 @@ gh api --paginate "$R/issues?state=open&per_page=100" \
   --jq '.[] | select(.pull_request|not) | {number, title, labels: [.labels[].name]}'
 ```
 
-State labels: `needs-triage`, `needs-info`, `needs-grilling`, `ready-for-build`, `ready-for-structure`, `ready-for-feature-design`, `ready-for-human`, `future`, `hanging`, and `deferred-arch-finding` (`docs/agents/triage-labels.md`).
+State labels: `needs-triage`, `needs-info`, `needs-grilling`, `ready-for-build`, `ready-for-structure`, `ready-for-feature-design`, `ready-for-human`, `future`, `hanging`, `deferred-accepted-risk`, and `deferred-arch-finding` (`docs/agents/triage-labels.md`).
 Exempt from this check: issues labelled `epic` (check 3 already covers those).
 `release:*`, `bug`, `enhancement` and `breaking` are not state labels and don't satisfy this check on their own.
 
@@ -195,7 +195,7 @@ A remaining ticket counts as handed out if any of these holds:
 "In the coordinator's queue" means the ticket carries the `queued` label, or its number appears in the newest coordinator message in the project chat that lists queued tickets (read with the harness's chat-reading tool, newest first, until that message is found).
 
 Report the tickets that are neither handed out nor queued (SDLC-023): a gap for the owner and the coordinator to decide, the same as every other check in this skill.
-List it under "Suggested actions for the coordinator" as "queue now", since the coordinator's default-queue rule ("The label state machine") already says a ready ticket like this one should be queued without being asked, unless the ticket itself is `needs-decision`, `hanging`, `future`, `deferred-arch-finding`, carries an open `Blocked by:`, or the owner is on record holding it, in which case say so instead.
+List it under "Suggested actions for the coordinator" as "queue now", since the coordinator's default-queue rule ("The label state machine") already says a ready ticket like this one should be queued without being asked, unless the ticket itself is `needs-decision`, `hanging`, `deferred-accepted-risk`, `future`, `deferred-arch-finding`, carries an open `Blocked by:`, or the owner is on record holding it, in which case say so instead.
 
 Also list the open review-pass tickets that lack `main-health`: a title starting `Post-merge review pass`, a title naming full-suite or CI-drift work, or a `Route: Main Health` line in the body, with no `main-health` label.
 Expected to be empty.
@@ -203,18 +203,19 @@ A hit is a labelling gap, fixed by adding `main-health` (`docs/agents/triage-lab
 
 **If this harness has no thread-listing or chat-reading tools** (part (d) and the chat read both need them), report under "Not checkable this run: queue not fully readable from this harness" instead of treating the residual list as gaps; don't count a ticket as un-queued just because this run couldn't see the queue.
 
-### 6. Hanging children past their revisit date
+### 6. Hanging-epic children past their revisit date
 
 The population is the union of:
 
 ```
 gh api --paginate "$R/issues?labels=hanging&state=open&per_page=100"
+gh api --paginate "$R/issues?labels=deferred-accepted-risk&state=open&per_page=100"
 gh api --paginate "$R/issues/$HANGING/sub_issues?per_page=100" --jq '.[] | select(.state=="open")'
 ```
 
-Report a membership mismatch either way (labelled `hanging` but not a child of the hanging epic, or a child of the epic without the label) as its own list.
+Report a membership mismatch either way (a child of the hanging epic with neither `hanging` nor `deferred-accepted-risk`, or either label on an issue that isn't a child of the epic) as its own list.
 
-`docs/agents/triage-labels.md` documents `hanging`'s revisit trigger as the hanging epic's revisit cadence plus any revisit date or condition recorded in the issue itself.
+`docs/agents/triage-labels.md` documents `hanging`'s and `deferred-accepted-risk`'s revisit trigger as the hanging epic's revisit cadence plus any revisit date or condition recorded in the issue itself.
 This skill uses the one-line convention `Revisit: YYYY-MM-DD` (optionally `Revisit by:` or `Revisit on:`) for that per-issue date, and reads it with the pattern `(?im)^\**Revisit(?: by| on)?:?\**\s*(\d{4}-\d{2}-\d{2})`, taking the last match in the body, then in the comments (newest first) if the body has none.
 
 Two result lists:
@@ -412,7 +413,7 @@ Flag a gap when either:
 No unswept note, no such merge, or neither older than 3 days, is not a gap, however old `updated_at` reads.
 
 **(b) Local full-suite evidence tracker.**
-Skip this part, reporting it under "Not checkable this run: no local full-suite script yet", while `scripts/local-full-suite.sh` is not on `origin/main`.
+Skip this part, reporting it under "Not checkable this run: no local full-suite script yet", while `{{ local_full_suite_script }}` is not on `origin/main`.
 
 The canonical record is a comment on the local full-suite evidence tracker `$LFS`, never a commit status: some environments' GitHub proxy refuses commit-status writes outright, so a check that only read statuses would wrongly read those environments as permanently overdue even while the script runs cleanly.
 A full run's comment carries a single-line marker `<!-- local-full-suite-evidence sha=<sha> finished=<ISO8601> aggregate=pass|fail -->`; a resumed or partial run posts no such comment, so its absence between two full runs is not itself a gap.
@@ -442,7 +443,7 @@ Flag a gap when either:
 - a marked comment was found, it is more than 24 hours old, **and** `main`'s head has moved since that comment's `sha` (a quiet period where `main` simply hasn't moved is not a gap, since there would be nothing new to re-verify); or
 - no comment on the tracker carries the marker at all (not an API failure, so this isn't "not checkable": an evidence tracker with zero full-run evidence on it is itself the gap).
 
-Where the environment also allows commit-status writes, a `local-full-suite` aggregate status will usually exist too on the same commit, but this check never depends on it and never reads it: the tracker comment alone is sufficient everywhere this routine runs, including an agent environment that cannot write commit statuses at all.
+Where the environment also allows commit-status writes, a `{{ lfs_status_context }}` aggregate status will usually exist too on the same commit, but this check never depends on it and never reads it: the tracker comment alone is sufficient everywhere this routine runs, including an agent environment that cannot write commit statuses at all.
 
 Report both (a) and (b) as their own rows, each reading "none" when clean.
 A gap here is "not checkable this run" only when the API calls themselves fail (rate limit, no token); it is never silently skipped.

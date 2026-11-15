@@ -9,8 +9,9 @@ Run everything from a fresh `git worktree` cut from `origin/main` (`implement-wi
 
 ## Every ticket
 
+- Create the ticket's worktree with `python3 scripts/worktree_setup.py <branch-name>` (`implement-with-merge` step 1), which fetches `origin/main`, creates the worktree, and symlinks the installed, git-ignored dependency directories `scripts/worktree_shared_paths.txt` names, so the ticket starts without reinstalling them. Stage 0 fills that file in with this project's own shared-dependency paths. A ticket that changes a dependency pin passes `--no-shared-paths` and installs fresh in its own worktree instead of reusing the primary checkout's copy.
 - The pre-commit hook is the one piece of setup every ticket needs, because it enforces the lint gate on whatever the commit touches: `pre-commit install --install-hooks`, after installing the pinned `pre-commit` from the project's dev requirements.
-  Check it is installed with `test -f .git/hooks/pre-commit`; never commit with `--no-verify`.
+  Check it is installed with `test -f .git/hooks/pre-commit`; never commit with `--no-verify`. (`worktree_setup.py` reports, but never installs, a missing hook.)
 - Beyond the hook, **set up only what the ticket's own scope needs**.
   A plain prose-only doc edit (no script to run, no regenerated file, no test) needs nothing beyond the standing pre-commit hook.
 - The project's one-command setup is `{{ setup_command }}`.

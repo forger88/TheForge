@@ -613,18 +613,20 @@ pr_file_status() {
 
 python3 "$here/check_review_gate.py" "$dir/body" "$dir/pr-files-names" || guard_failed "review-gate"
 
-sdlc_status="$(pr_file_status docs/software-development-lifecycle.md)"
-if [ -n "$sdlc_status" ]; then
-  if [ "$sdlc_status" = "added" ]; then
-    : > "$dir/sdlc_old.md"
-  else
-    fetch_pr_version "$base_sha" docs/software-development-lifecycle.md "$dir/sdlc_old.md"
+# fetch_or_empty REF PATH OUT -- PATH's content at REF into OUT, or empty
+# when REF is blank or the fetch fails. Unlike fetch_pr_version, absence
+# here is a legitimate outcome: the lifecycle doc is read regardless of
+# whether it's in this PR's changed-file list (check_sdlc_wording_hold.py's
+# module docstring).
+fetch_or_empty() {
+  if [ -z "$1" ] || ! api_get_raw_file "contents/$2?ref=$1" > "$3" 2>/dev/null; then
+    : > "$3"
   fi
-  fetch_pr_version "$head_sha" docs/software-development-lifecycle.md "$dir/sdlc_new.md"
-  python3 "$here/check_sdlc_wording_hold.py" "$dir/body" "$dir/sdlc_old.md" "$dir/sdlc_new.md" \
-    || guard_failed "SDLC wording hold"
-fi
+}
 
+# The SDLC hold check and the forge-sync trust record both trigger off
+# .copier-answers.yml, since every sync touches it; the lifecycle doc's
+# own presence in the PR's file list is not the trigger (see above).
 answers_status="$(pr_file_status .copier-answers.yml)"
 if [ -n "$answers_status" ]; then
   if [ "$answers_status" = "added" ]; then
@@ -635,6 +637,58 @@ if [ -n "$answers_status" ]; then
   fetch_pr_version "$head_sha" .copier-answers.yml "$dir/answers_new.yml"
   python3 "$here/check_forge_sync_trust_record.py" "$dir/body" "$dir/answers_old.yml" "$dir/answers_new.yml" \
     || guard_failed "forge-sync trust record"
+
+  fetch_or_empty "$base_sha" docs/software-development-lifecycle.md "$dir/sdlc_old.md"
+  fetch_or_empty "$head_sha" docs/software-development-lifecycle.md "$dir/sdlc_new.md"
+
+  old_commit="$(python3 -c "import sys; sys.path.insert(0,'$here'); import bootstrap; print(bootstrap.parse_answers(open(sys.argv[1]).read()).get('_commit') or '')" "$dir/answers_old.yml")"
+  new_commit="$(python3 -c "import sys; sys.path.insert(0,'$here'); import bootstrap; print(bootstrap.parse_answers(open(sys.argv[1]).read()).get('_commit') or '')" "$dir/answers_new.yml")"
+  # Read from BASE, never head: a sync PR's own head answers file is
+  # attacker-controlled, and pointing _src_path elsewhere there must not
+  # change what this check verifies against.
+  src_path="$(python3 -c "import sys; sys.path.insert(0,'$here'); import bootstrap; print(bootstrap.parse_answers(open(sys.argv[1]).read()).get('_src_path') or '')" "$dir/answers_old.yml")"
+
+  if [ -n "$old_commit" ] && [ -n "$new_commit" ] && [ "$old_commit" != "$new_commit" ]; then
+    if [ -z "$src_path" ]; then
+      echo "check-merge-text: .copier-answers.yml has no _src_path; cannot verify the SDLC hold for PR $pr." >&2
+      exit 1
+    fi
+    case "$old_commit" in -*) echo "check-merge-text: _commit (old) begins with '-': $old_commit" >&2; exit 1 ;; esac
+    case "$new_commit" in -*) echo "check-merge-text: _commit (new) begins with '-': $new_commit" >&2; exit 1 ;; esac
+    # A clone/fetch failure here fails the scan (set -e), not a silent
+    # skip: a private _src_path this environment cannot reach is an open
+    # gap (docs/security/threat-model.md, §8), not something papered over.
+    src_url="$(python3 -c "import sys; sys.path.insert(0,'$here'); from _git_subprocess import source_url; print(source_url(sys.argv[1]))" "$src_path")"
+    rm -rf "$dir/upstream-clone"
+    git clone --quiet -- "$src_url" "$dir/upstream-clone"
+    # Each commit must resolve -- an unresolvable rev fails closed, distinct
+    # from a doc legitimately absent at a resolvable commit (below).
+    git -C "$dir/upstream-clone" rev-parse --verify --quiet --end-of-options "$old_commit^{commit}" > /dev/null
+    git -C "$dir/upstream-clone" rev-parse --verify --quiet --end-of-options "$new_commit^{commit}" > /dev/null
+    git -C "$dir/upstream-clone" show --end-of-options "$old_commit:template/docs/software-development-lifecycle.md" > "$dir/sdlc_upstream_old.md" 2>/dev/null || : > "$dir/sdlc_upstream_old.md"
+    git -C "$dir/upstream-clone" show --end-of-options "$new_commit:template/docs/software-development-lifecycle.md" > "$dir/sdlc_upstream_new.md" 2>/dev/null || : > "$dir/sdlc_upstream_new.md"
+  else
+    : > "$dir/sdlc_upstream_old.md"
+    : > "$dir/sdlc_upstream_new.md"
+  fi
+
+  python3 "$here/check_sdlc_wording_hold.py" "$dir/body" "$dir/answers_old.yml" "$dir/answers_new.yml" \
+    "$dir/sdlc_old.md" "$dir/sdlc_new.md" "$dir/sdlc_upstream_old.md" "$dir/sdlc_upstream_new.md" \
+    || guard_failed "SDLC wording hold"
+
+  # Same trigger and the same clone as the SDLC-hold check above (when one
+  # was made: a project with no _src_path reachable here never reaches this
+  # line, and there's nothing to check either). check_integrator_steps.py
+  # reads docs/release-notes.md and any docs/release-notes/*.integrator-steps.json
+  # sidecar from the clone's own root, never a subdir -- release notes
+  # describe changes to TheForge itself, not the seed a generated project
+  # receives.
+  if [ -n "$old_commit" ] && [ -n "$new_commit" ] && [ "$old_commit" != "$new_commit" ] \
+      && [ -f "$here/check_integrator_steps.py" ]; then
+    python3 "$here/check_integrator_steps.py" --template "$dir/upstream-clone" --old "$old_commit" --new "$new_commit" \
+      --pr-body "$dir/body" \
+      || guard_failed "integrator steps"
+  fi
 fi
 
 (cd "$dir" && "$here/check-no-issue-refs.sh" --warn title body commits identities squash-scanned)

@@ -40,13 +40,15 @@ This is "fix the class of bug, not just the flagged line" (`.forge/review-gate.m
 
 ## Triggered checklists
 
-The skill also carries five checklists that run only when their trigger applies:
+The skill also carries seven checklists that run only when their trigger applies:
 
 - **Concurrency and lifecycle**, when the diff touches connections, pools, background tasks, sockets, locks, slots or claims, cached per-session state, or adds an await between a user's action and its effect.
 - **Security delta**, when the ticket carries a design-exit Security part or the design-doc slice carries a threat-model delta.
 - **Domain glossary**, when the diff names a domain concept `CONTEXT.md` would define.
 - **Mutually-dependent file pairs**, when the diff touches one file of a pair the skill names, or a pair a project has named in its own project-owned doc.
 - **Scope generalization**, when the diff turns a specific, one-off owner instruction into standing skill or instruction wording usable by future tickets.
+- **Governed artefacts**, when the diff touches a path the artefact map lists, on the light gate, or on the full gate for a mapped file the Standards axis missed.
+- **Sync-impact category**, before a diff is recorded `release:internal` or `Release note: none`.
 
 ## The checklist grows
 

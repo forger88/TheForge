@@ -17,6 +17,9 @@ A feature's own issue is the pipeline's record.
 
 ## Stage 0: project inception (once per repo)
 
+Stage 0 is run as a conversation with the owner, not a silent script: before its first ask, the thread opens with a short plain-language orientation — what stage 0 is for, what is about to happen (a handful of one-time setup offers, then an interview run in rounds), and why the owner's answers matter (they seed `docs/principles.md`, settle the guard tooling, and set the project's own lint/test/coverage commands).
+It keeps narrating as it moves through stage 0's own sub-steps (the tracker/label scaffolding, each setup offer, the grilling interview, writing `scripts/local-full-suite.sh`), saying in a line what it's doing next and why, rather than running the preview once and then falling silent until it's done.
+
 Before the first feature, scaffold the issue tracker, triage labels and domain-doc layout the other skills assume (the bootstrap script does most of this; `docs/agents/issue-tracker.md`, `docs/agents/triage-labels.md` and `docs/agents/domain.md` describe the result).
 Offer to run the `impeccable` skill's setup to capture durable product context for the project's UI work.
 Ask the owner once whether to run it now or skip it; if skipped, say so plainly, and offer it again the first time a feature introduces or changes a UI.
@@ -30,11 +33,13 @@ On decline, both skills stay `discretionary: true`.
 A later stack adds its own row to the table, not new prose.
 
 Then a grilling thread (`grill-me`, which runs `grilling`) with the owner draws out the principles every feature must respect.
+Before the interview's first round, the thread walks the owner through whatever principles `docs/principles.md` already carries at generation time, and says plainly that the owner can change or add to any of them — at stage 0 or at any later point — through `domain-modeling`'s owner-approval process.
 The interview covers what in the domain will change underneath the project, which external systems are trusted and how far, which frameworks are built on rather than written, size and complexity budgets, test philosophy, and security posture.
+Each question states, in a line, why it is being asked, on top of `grilling`'s own shared round format, which doesn't require a why on its own.
 Each principle whose exact wording the owner approves is written into `docs/principles.md` (the principles part of `domain-modeling`), with its why and its enforcement, in one ticketed docs PR that quotes the owner's approval of that wording.
 Stage 0 also chooses the project's real tools for the generic guards (linter, dead-code tool, size-cap measurement, test-coverage tool), sets the `coverage_floor` answer from a measured baseline of the project's own suite, and replaces the placeholder commands the template shipped with.
 Stage 0 also writes `scripts/local-full-suite.sh`, this project's own local stand-in for the gap between scheduled CI passes (`.forge/ci-and-checks.md`; `watch-main-ci`'s Routine 2 names its purpose, schedule and evidence format), rather than leaving it as a gap for Main Health to discover later.
-`docs/principles.md` holding at least one owner-confirmed principle beyond the forge-seeded one on `main` is the record that stage 0 has run.
+`docs/principles.md` holding at least one owner-confirmed principle beyond the forge-seeded ones on `main` is the record that stage 0 has run.
 Stage 0 has no line on a feature's checklist.
 
 ## Stage 1: idea
@@ -124,6 +129,7 @@ The design doc has these parts:
 
 - the invariants every slice keeps;
 - a module map: new modules, and the one named hook in each touched module;
+- for a design with more than one slice, a shared-idioms table, written before the slices are cut: one row per cross-cutting concern two or more slices will meet (how a key is built, how a write is made, where a shared query is defined, how a "still current" check is made, and similarly), naming the one module and helper every slice uses for it and the slices that meet it;
 - the data model and configuration keys;
 - a build-versus-buy line for every new module: the library considered and why it was rejected, or the library chosen instead of hand-rolling (`.forge/code-shape-rules.md`, "Adopt the abstraction early, then stay on it");
 - when that line depends on facts about an external library or API, the design thread delegates the reading to `research` and cites its findings in the line;
@@ -138,6 +144,9 @@ The design doc has these parts:
 File paths and signatures belong here, unlike a ticket body, because this document constrains the implementation.
 Before the doc PR opens, the design thread applies `codebase-design`'s own tests to its module map.
 It runs the deletion test on every new module, and the "one adapter is a hypothetical seam, two adapters make a real one" test on every new protocol or adapter, with a one-line justification for each seam it keeps.
+For a design with more than one slice, it also checks the shared-idioms table against the slice sections: every concern two or more slices meet has exactly one row, each row names one module and one helper, and no slice section describes its own way of solving a concern a row already names.
+A row's helper that does not exist yet appears in the module map and is built by one slice, which every other slice in that row blocks on.
+The doc PR does not open while a cross-cutting concern is still unsettled; leaving it for each slice to answer is what this check prevents (`docs/principles.md`, "Don't repeat yourself").
 Every module-map and build-vs-buy row must be claimed by some slice; `to-tickets` checks this at stage 6, so a design thread that wants to self-check cheaply before the doc PR can run that same cross-check early.
 Tick checklist item 5 in the same action as the design doc PR's merge.
 The feature issue's `ready-for-feature-design` was already removed when this thread started stage 3, and stage 5 applies no label of its own to the tracker, which stays an `epic` until stage 6 labels its slice tickets.
@@ -175,6 +184,7 @@ No further owner word starts stage 7: the slot limits and the coordinator's hand
 Each ticket is built with `implement-with-merge`, re-invoked in full at the start of each ticket.
 A thread that has built several tickets re-reads `implement-with-merge`, `implement` and `tdd`'s guard-removal section before the first test of every next one, because test discipline decays across a long thread.
 When implementation has to deviate from the design doc, the PR updates the doc's section in the same PR and says why in the PR body; the doc is the record of what was built.
+A slice that meets a cross-cutting concern the design doc's shared-idioms table does not name does not solve it locally: it goes back to stage 5 to add the row first, the same as any other question its section left open.
 A gap the builder finds outside the slice's scope is not built and not queued: it is raised to the owner as a `needs-decision` ticket, or filed as a `deferred-arch-finding` when it is weak (SDLC-116).
 A slice pauses for an owner approval only when it needs an item on the closed approval list, such as a requirement whose wording must change before the slice can satisfy it; that slice waits, with the exact wording linked and quoted, while the feature's other unblocked slices keep building.
 A `needs-decision` label or an explicit owner hold still stops its own ticket, as it does anywhere else.
@@ -216,6 +226,8 @@ Otherwise, before any other work, the fresh design-tier thread briefed for this 
 
 That thread, briefed with the design doc and the feature issue's design comments, runs `improve-codebase-architecture` scoped to the files the design doc's slices named or touched, never the whole codebase.
 For any user interface in that scope it also checks for drift from stage 3 and 5's UI check against the `impeccable` skill.
+For a design with more than one slice, it also runs that skill's shared-idiom check against the design doc's shared-idioms table.
+A named idiom a slice bypassed without a reason stated at the site, or a concern two slices each solved with no row naming it, is graded Strong by default: the first departs from the approved design, and the second is the duplicate the table exists to prevent.
 It runs once per feature.
 
 The same thread triages every finding into exactly one of four outcomes, with no fifth:
@@ -233,7 +245,7 @@ If two or more findings share a shape, the thread also asks the owner "is there 
 This gate is routine, not optional: a per-PR review cannot see what only the whole feature shows, such as a seam two slices each patched around, a helper added twice, or a hook that drifted from the doc.
 The stage 8 architecture-pass ticket itself closes once the triage is posted and every finding from it is filed; it does not wait on any filed ticket's own fix to merge.
 The feature issue's checklist item for this stage is ticked only once the architecture-pass ticket and every Strong-finding and `needs-decision` ticket it filed are themselves resolved, never when the triage is merely posted or the pass ticket alone closes.
-A ticket is resolved when it is closed, or when it is a `needs-decision` ticket the owner has settled by parking it (for example as `hanging` or as a `deferred-arch-finding`), with the owner's decision recorded on it and the ticket detached from the tracker.
+A ticket is resolved when it is closed, or when it is a `needs-decision` ticket the owner has settled by parking it (for example as `hanging`, `deferred-accepted-risk` or `deferred-arch-finding`), with the owner's decision recorded on it and the ticket detached from the tracker.
 
 ## Closing the tracker
 

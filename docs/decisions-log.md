@@ -45,3 +45,11 @@ This decision predates `.forge/code-shape-rules.md`'s "A safety-critical process
 **Declined because:** the owner decided against fixing them: "Gaps 1 and 2 are won't fix." They are recorded as accepted risks in `docs/security/threat-model.md` §10.
 
 **Date:** 2026-11-01
+
+### Accept the watch-main-ci mechanics narrowing (issue "Decide whether watch-main-ci should accommodate a stand-in with different mechanics (no lock, a different baseline file), not just different names")
+
+**Considered:** whether a project's local full-suite stand-in should also be free to differ in *mechanics* (its own lock/`--is-running` convention, a differently-shaped baseline file and comparison rule) now that the script's name and publish switch are parameterized, or whether the mechanics stay a fixed forge contract and a project whose stand-in genuinely works differently keeps a local, mechanics-only override.
+
+**Declined because:** the lock and baseline rules are what make Routine 2's overlap rule and skip check work; the feature that parameterized the script's naming had already excluded changing the mechanics, and generalising them now would be a separate, more invasive feature for a case with one known instance so far. Owner chose "1" on decision card 18, 2026-11-08 (accept the narrowing: mechanics stay a forge contract; a divergent project either converges or keeps a mechanics-only override). Owner's words: "Q18 1"
+
+**Date:** 2026-11-08

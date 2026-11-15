@@ -32,7 +32,7 @@ It will:
 3. run a **grilling interview** with you (`grill-me`), a round of numbered questions at a time, each with a recommended answer, drawing out the principles every later feature must respect: what in your domain will change underneath you, which external systems you trust and how far, which frameworks you build on rather than write, size and complexity budgets, your test philosophy and your security posture;
 4. write each principle you confirm into `docs/principles.md`, with why it holds and what enforces it, in one ticketed docs PR that quotes your confirmation.
 
-`docs/principles.md` holding at least one owner-confirmed principle beyond the forge-seeded one on `main` is the record that stage 0 has run.
+`docs/principles.md` holding at least one owner-confirmed principle beyond the forge-seeded ones on `main` is the record that stage 0 has run.
 Stage 0 is also when the project chooses its real tools for the generic guards (its linter, its dead-code tool, its size-cap measurement) and replaces the placeholder commands the template shipped with.
 
 If one coordinator serves several of your repositories, add a line reading `Lead repo: <owner>/<name>` to your scope section, naming which one.
@@ -97,9 +97,10 @@ The parking labels behind them are described in `docs/agents/triage-labels.md`, 
   A bug fix goes ahead of feature work and is built straight off its ticket from a red reproduction loop.
   A feature on the pipeline path starts from whichever stage it has reached.
   A small, already-clear change on the direct path is triaged and built.
-- **Hanging**: a real, agreed gap that is deliberately not being worked on now, such as an accepted risk or something deferred until a named point.
-  Only you can park something as hanging.
-  Hanging items a user could hit are reported as known issues in the release notes, so they are never silently forgotten.
+- **Hanging**: a real, agreed gap that is deliberately not being worked on now because it is deferred until a named point.
+  An accepted risk (one you decide to live with rather than fix) is parked the same way under its own label, `deferred-accepted-risk`.
+  Only you can park something this way.
+  Hanging and accepted-risk items a user could hit are reported as known issues in the release notes, so they are never silently forgotten.
 - **Future**: an idea worth keeping, not yet scheduled or scoped.
   It waits under the deferred-ideas epic until you ask for its scoping pass, at which point it enters the feature pipeline.
 

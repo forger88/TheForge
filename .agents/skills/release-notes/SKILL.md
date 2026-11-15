@@ -1,6 +1,6 @@
 ---
 name: release-notes
-description: "Draft the next release's section of docs/release-notes.md from the PRs merged since the last tag, open its PR, then hand over the tag and GitHub Release text. Run by hand before tagging a release."
+description: "Draft the next release's section of docs/release-notes.md from the PRs merged since the last tag, open its PR, then hand over the tag and GitHub Release text. Run by hand before tagging a release; also governs the form of any edit to docs/release-notes.md."
 disable-model-invocation: true
 ---
 
@@ -283,6 +283,17 @@ full list.
    has either its proposed lines or "no change".
 
 6. **Draft known issues** (SDLC-078). Sources:
+   - **the previous release's Known issues, and any `## Unreleased` Known
+     issues, as candidates only.** Never copy one forward unverified: look
+     up its cited issue's current state and close reason
+     (`gh api "$R/issues/<N>" --jq '{state,state_reason}'`; `state` alone
+     cannot tell a fixed issue from a declined one). If it closed with
+     `state_reason: completed` and its fix landed inside the range, move
+     it to Bug fixes (subject to step 4's netting). If it closed with
+     `state_reason: not_planned` (declined), drop it, or keep it only as a
+     deliberate limitation citing the ADR or decisions-log entry that
+     records it. If the behaviour is now covered by a Satisfied
+     requirement, drop it;
    - open issues labelled `bug` that a user could hit
      (`gh api --paginate "$R/issues?labels=bug&state=open&per_page=100"`,
      skipping pull requests in the result). `bug` is not one of the
@@ -303,19 +314,22 @@ full list.
      — read titles for a user-reachable bug description; most of these
      sub-issues are process or review findings, not user-facing, so most
      will be judged not user-facing rather than drafted;
-   - **hanging items.** Treatment per `docs/agents/triage-labels.md`,
-     "Parking labels": each open issue a user or integrator could hit
-     becomes a Known issues entry, the rest are noted as not user-facing.
-     This needs two queries, unioned — the `hanging` label and the
-     hanging epic's sub-issues can disagree (an issue can carry the label
-     without being a child yet, or be a child without the label):
+   - **hanging and accepted-risk items.** Treatment per
+     `docs/agents/triage-labels.md`, "Parking labels": each open issue a
+     user or integrator could hit becomes a Known issues entry, the rest
+     are noted as not user-facing. This needs three queries, unioned —
+     the `hanging` label, the `deferred-accepted-risk` label, and the
+     hanging epic's sub-issues can disagree (an issue can carry a label
+     without being a child yet, or be a child without either label):
      `gh api --paginate "$R/issues?labels=hanging&state=open&per_page=100" --jq ".[] | select(.pull_request | not) | select(.number != $HANGING)"`
+     and
+     `gh api --paginate "$R/issues?labels=deferred-accepted-risk&state=open&per_page=100" --jq ".[] | select(.pull_request | not) | select(.number != $HANGING)"`
      and
      `gh api --paginate "$R/issues/$HANGING/sub_issues?per_page=100" --jq '.[] | select(.state=="open")'`
      — the same pagination gap applies here: without `per_page`, GitHub's
-     default page size silently truncates. Dedupe the two queries by issue
-     number before drafting; several items can fold into one known-issue
-     sentence;
+     default page size silently truncates. Dedupe the three queries by
+     issue number before drafting; several items can fold into one
+     known-issue sentence;
    - **count of deferred architecture findings.** Treatment per
      `docs/agents/triage-labels.md`, "Parking labels": the open
      `deferred-arch-finding` issues make one summary count line, in
@@ -352,12 +366,24 @@ full list.
      one-sentence theme) the same way the deferred-architecture-findings
      count above does, unless there are few enough to list individually.
 
+   **What a bullet cites.** Every Known issues bullet ends with an
+   **open** issue, or, for a deliberate accepted limitation, the ADR or
+   decisions-log entry that records it. A candidate with neither is not
+   drafted until the person decides: either a ticket is filed for it (the
+   person chooses its state) or it is dropped. A closed issue is never
+   the citation.
+
    Write each as one plain sentence about what a user or integrator may
    see, not about the code. The person curates this list; offer it as a
    draft. Done when every source above has been read and each candidate is
    drafted or noted as not user-facing.
 
-7. **Write the section and show it.** Write the section into
+7. **Write the section and show it.** Before writing it, check every
+   Known issues bullet against step 6's citation rule: for each `(#N)`,
+   run `gh api "$R/issues/<N>" --jq .state` and confirm it reads `open`
+   (the ADR/decisions-log form needs no lookup). Fix any failure (a
+   closed issue, a missing citation) before writing the section, and list
+   it in chat if the person must decide it. Write the section into
    `docs/release-notes.md` above the previous release, in the shape
    below. Then show the person, in chat:
    - the section as written;
@@ -372,6 +398,25 @@ full list.
    When the section is written, the `## Unreleased` entries move into it
    (merged into the lines they belong to) and the `## Unreleased` heading
    is removed; the next ticket that needs an advance note adds it again.
+
+   **If this project is itself a template source other projects sync from
+   with `forge-sync`** (its own release notes document a change *to* that
+   template, the way this repository's own `docs/release-notes.md` does),
+   also write `docs/release-notes/<version>.integrator-steps.json`
+   alongside the section, one object per "For integrators" bullet (both
+   breaking and non-breaking), in the same order:
+   `{"version": "<version>", "items": [{"id": "<issue number cited at
+   the bullet's end>", "breaking": <true|false>, "summary": "<the bullet's
+   text, with the trailing "(#N)" removed>", "refs": [<any other issue
+   numbers the same bullet cites>]}, ...]}`; `refs` is optional and purely
+   informational (the downstream check below reads only `id` and
+   `summary`). A downstream
+   project's `forge-sync` ("Walk the integrator steps") reads this file to
+   turn each bullet into a checklist item instead of leaving it for the
+   integrator to notice by reading prose; a project that is not itself a
+   template source skips this file, since nothing downstream ever reads
+   it. Omit it (never write an empty `items: []`) for a release whose "For
+   integrators" section is "None."
 
    Done when the person has confirmed the section, the breaking changes
    and the version, and every question has an answer.

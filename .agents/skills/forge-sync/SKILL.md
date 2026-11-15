@@ -103,9 +103,10 @@ Run `pre-commit run --all-files` so every guard sees the synced files.
 
 `copier update` may have just changed `docs/software-development-lifecycle.md`'s own statement wording alongside everything else in the file: added, removed or reworded a `- **SDLC-NNN**: ...` line (including adding, removing or moving its `*(desirable)*` marker, which SDLC-002 treats as a meaning change too). Only the owner approves that (`.forge/process-and-evidence.md`, "Process changes follow the lifecycle doc"), so it never rides this sync PR, even on a clean merge with no conflict markers.
 
-This step is no longer only procedural: `review-gate-check.yml` runs `scripts/check_sdlc_wording_hold.py` on every PR whose body carries this skill's "Drift before this sync" marker and that touches `docs/software-development-lifecycle.md`. It re-diffs the file between this PR's base and head and fails the PR if any statement still differs from its pre-sync text, or if the PR body's "SDLC wording held" line (below, under "Review and merge") is missing or blank — so skipping this section, or writing "none" without actually checking, no longer ships silently.
+This step is no longer only procedural: `review-gate-check.yml` runs `scripts/check_sdlc_wording_hold.py` on every PR whose `.copier-answers.yml` `_commit` changes — not whether the PR body carries any marker, and not whether the lifecycle doc happens to appear in the PR's own changed-file list. A `copier update` conflict resolved to the project's own side before this check ever ran can leave the file's own before/after identical even though upstream changed several statements; a file-list-gated trigger sees nothing to check in that case, and the changes ride through unheld. The `_commit`-keyed trigger, plus an independent recomputation of what upstream actually changed (`check_sdlc_wording_changes.py`'s `account()`), catches that shape: it fails the PR when any statement upstream changed between the two `_commit`s still differs from its pre-sync text, when the PR body's "SDLC upstream changes" line (step 1 below) is missing or doesn't match that recomputation, or when the "SDLC wording held" line (below, under "Review and merge") is missing or blank — so skipping this section, or writing "none" without actually checking, no longer ships silently.
 
-1. Run `python3 scripts/check_sdlc_wording_changes.py <pre-sync copy> docs/software-development-lifecycle.md`, against the project's own pre-sync copy saved under "Before you start" step 7 — **never** a render of the old upstream template. The old upstream render is what the project's file looked like before any of this project's own owner-approved local amendments; comparing against it instead of the project's actual pre-sync file would report every such amendment as "changed" and, at step 3 below, silently revert it to the old upstream wording rather than leaving it alone.
+1. Run `python3 scripts/check_sdlc_wording_changes.py --template <clone> --old <old _commit> --new <new _commit> <pre-sync copy> docs/software-development-lifecycle.md`, where `<clone>` is the full `git clone` of `.copier-answers.yml`'s `_src_path` step 2 below also uses, and `<pre-sync copy>` is the project's own pre-sync copy saved under "Before you start" step 7 — **never** a render of the old upstream template. The old upstream render is what the project's file looked like before any of this project's own owner-approved local amendments; comparing against it instead of the project's actual pre-sync file would report every such amendment as "changed" and, at step 3 below, silently revert it to the old upstream wording rather than leaving it alone.
+   Its first line, `SDLC upstream changes: <old>..<new> held: <ids or "none">; current: <ids or "none">`, is the account this step must hold: `held` is every statement to carry forward into steps 2–4 below (`current` already matches upstream's new wording in the project's own pre-sync copy, so there's nothing to revert for those). Paste that line into the sync PR body verbatim (see "Review and merge").
 2. Before editing anything, for each statement reported, copy its exact lines as `copier update` just wrote them from the synced file verbatim: the script's own printed text is for comparison only (it joins continuation lines onto one line and normalizes whitespace) and is not a safe source to carry into the second PR below.
    Then find the other synced text that depends on them: run `python3 scripts/check_held_sdlc_prose.py --template <clone> --old <old _commit> --new <new _commit> --base <pre-sync commit> <each reported SDLC-NNN>`, where `<clone>` is a full (not shallow) `git clone` of `.copier-answers.yml`'s `_src_path` into a temporary directory.
    It finds every upstream commit that changed a reported statement and prints each line of that commit's other files that the sync brought in or took out; copy each printed line as the synced file now has it, verbatim, the same way.
@@ -113,6 +114,7 @@ This step is no longer only procedural: `review-gate-check.yml` runs `scripts/ch
 3. Edit the synced `docs/software-development-lifecycle.md` in this branch back to each reported statement's exact old text (delete the line entirely if the pre-sync copy had none; if the pre-sync copy had a statement the new one lacks, insert it at the position matching the surrounding statements' ascending `SDLC-NNN` order), so this sync PR carries none of it. Everything else upstream changed in that file (new prose, a typo fix, a reordering, a new non-statement section) still flows through this sync PR as normal; re-run the check once after editing to confirm it now reports nothing.
    Revert each dependent line step 2 found back to its pre-sync text the same way, then re-run `check_held_sdlc_prose.py` to confirm it reports nothing, or say in the PR body why each line it still prints doesn't depend on the held wording.
    Log everything this step reverted, statements and dependent lines, as one `docs/forge-overrides.md` entry naming the step 4 ticket, so a later sync's conflict resolution keeps the hold instead of taking upstream's version (`.forge/forge-overrides.md`).
+   A merge-conflict hunk touching a held statement is never resolved by picking a side — pick neither, and hold it per this section instead; `check_sdlc_wording_changes.py`/`check_sdlc_wording_hold.py` both refuse outright on an unresolved conflict marker rather than comparing it as if it had already been resolved.
 4. If anything was held, open a second branch off the pre-sync commit and apply just the held statements' new lines, verbatim as step 2 captured them, not the script's output.
    File one short ticket for it and open the branch as its own lifecycle-doc PR (`.forge/process-and-evidence.md`, "Process changes follow the lifecycle doc").
    Link the two PRs to each other in both bodies: this sync PR does not merge the statement wording; only the owner's approval on that second PR does.
@@ -125,6 +127,17 @@ This step is no longer only procedural: `review-gate-check.yml` runs `scripts/ch
    Merge it carrying exactly the text step 2 captured, which is what the owner approved: do not re-fetch upstream, re-render the template, or diff against upstream's current state first, even if upstream has moved since; a later upstream change is the next sync's to hold.
    Once both it and this sync PR have merged, open one more PR off the new `main` that applies the dependent lines the ticket lists, verbatim, and removes the step 3 override entry, citing the merged lifecycle-doc PR; it is ordinary forge-owned text, so it merges once its review gate is clear.
    On "Hold", record the owner's answer on the ticket and leave the ticket and the PR open and unmerged until the owner says otherwise.
+
+## Walk the integrator steps
+
+A TheForge release can ask the integrator to do something beyond resolving conflicts: create a label, answer a new Copier question, re-paste a snippet, rewrite a file to a new shape, create a secret. `docs/release-notes.md`'s "For integrators" section is the one place each of these is written down, but nothing before this step reads it — an integrator who runs straight through `--defaults --conflict inline` never sees it.
+
+1. Run `python3 scripts/check_integrator_steps.py --template <clone> --old <old _commit> --new <new _commit>`, against the same clone "Hold SDLC wording changes for the owner" step 2 uses (a full, not shallow, clone of `.copier-answers.yml`'s `_src_path`).
+   Its first line, `Integrator steps: <old>..<new> N: <ids or "none">`, is the list this step must walk; each following line is one item, `- #<id> (<version>): <summary>`, for every release the sync range crosses, oldest first. A release with a machine-readable sidecar (`docs/release-notes/<version>.integrator-steps.json`) gives a structured item; an older release with no sidecar gives one item per "For integrators" bullet that ends `(#N)`, read straight from its `docs/release-notes.md` section.
+2. For each item, either do what it asks (create the label, answer the Copier question, re-paste the snippet, rewrite the file, create the secret) in this sync branch, or say in the sync PR why it doesn't apply: the project doesn't use that feature, already does it a different way, or an earlier sync in this same range already carried it out. An item that needs its own ticket (a non-mechanical rewrite, a decision only the owner should make) is filed as its own ticket, linked from the sync PR, which notes it's tracked there rather than resolved inline.
+3. Paste `check_integrator_steps.py`'s own first line into the sync PR body under "Integrator steps" (see "Review and merge"), then one line per item underneath it: `#<id>: <what was done, why it doesn't apply, or the ticket it's tracked under>`.
+
+`review-gate-check.yml` backs this up: it re-runs `check_integrator_steps.py --pr-body` on every PR whose `.copier-answers.yml` `_commit` changes, and fails the PR when any item the sync's range carries has no `#<id>` after the PR body's "Integrator steps" marker — so leaving an item unaddressed, or dropping the marker, no longer ships silently. "none" passes with nothing further to write.
 
 ## Check the result
 
@@ -147,6 +160,8 @@ The PR body lists:
 - "Synced ref": `Synced ref: latest tag <tag>`, or `Synced ref: <ref> (not the latest tag): <why>`;
 - the drift check's result line from step 6 of "Before you start", under "Drift before this sync";
 - the trust diff's record line from "Check what `--trust` would run, before running it", under "Trust diff";
+- `check_sdlc_wording_changes.py --template`'s first line from step 1 above, verbatim, under "SDLC upstream changes" — `check_sdlc_wording_hold.py` recomputes it and fails the PR if this line is missing or doesn't match;
+- `check_integrator_steps.py`'s own first line from "Walk the integrator steps" step 1, verbatim, under "Integrator steps", followed by one line per item saying what was done, why it doesn't apply, or the ticket it's tracked under — `check_integrator_steps.py --pr-body` re-checks every `#<id>` is present and fails the PR otherwise;
 - every line added to or removed from `.forge/entrypoint.md`'s imports, under "Entrypoint import changes", or "none";
 - "Migration: kept lines", or "not needed";
 - every conflict and how it was resolved, and every override entry it removed;
@@ -155,6 +170,8 @@ The PR body lists:
 - "Upstream candidates" (see "Surface and record upstream candidates" below), or "none".
 
 If the coordinator or build-thread brief changed upstream, the harness's project-level copies of those texts change in the same session (`.forge/orchestration.md`, "The coordinator-core snippet is not a source of rules").
+
+Once the PR is open and the candidates below have been asked, report the sync back to the owner before asking for review ("Report the sync back to the owner" below).
 
 ## Surface and record upstream candidates
 
@@ -176,3 +193,24 @@ Marker edits are commits on this sync PR.
 The PR body's "Upstream candidates" line lists each question and the owner's answer in the approval-record form (`.forge/process-and-evidence.md`), or "none" when "Before you start" step 4 found no open candidates.
 This sync PR does not wait on the questions: one still unanswered at merge is recorded as "Not yet", asked again next time.
 `docs/forge-overrides.md` is missing, or has no `Upstream candidate` lines: no questions, "Upstream candidates: none".
+
+## Report the sync back to the owner
+
+A sync is multi-step and partly automated, and the owner isn't watching it step by step; the PR body is a mechanical record, not something anyone reads back to them.
+Once the sync PR is open and the candidates above have been asked, post one short summary message to wherever the sync was asked for — the project thread or chat the owner raised it in, never the PR body alone — before asking the owner to review and merge.
+
+At minimum, cover:
+
+- **What got updated.** `_commit` before -> after, "Synced ref" (the same value as the PR body's own line), and a plain-language list of what actually changed for this project: new or changed skills, `.forge/` files, and generated docs, not a diff stat.
+- **Current forge overrides.** Read `docs/forge-overrides.md` as it stands after this sync — not only the entries this sync touched — and list its live entries: file, what's overridden, and why. This is a standing picture of where the project still diverges from upstream, not a diff of this sync alone.
+- **The sync PR link**, for anyone who wants the full detail.
+
+Also fold in, condensed from what the steps above already produced:
+
+- **Time/effort.** Roughly where the sync's time went (for example "most of it was resolving conflicts in `<file>`", "the SDLC wording hold", or "the trust-diff review").
+- **Conflicts resolved.** Which files had conflict markers and how each was resolved — kept the project's override, took upstream, or needed an override-entry decision — condensed from "Resolve each conflict" above and the PR body's own conflict list.
+- **Skipped or held back.** Anything intentionally not synced this time: SDLC statements held for the owner's approval and the link to the separate lifecycle-doc PR ("Hold SDLC wording changes for the owner" above), project-owned or `_skip_if_exists` files, and declined upstream candidates.
+- **Upstream candidates.** Each "Offer `<file>`'s `<part>` upstream to TheForge?" question asked this sync and its answer — proposed, declined, or not yet — from "Surface and record upstream candidates" above.
+- **Needs the owner's attention.** Any SDLC wording still awaiting accept or hold, a `needs-decision` ticket filed for an upstream policy this project's lifecycle doc doesn't yet justify, or a drift/trust-diff finding that needed manual review before running `--trust`.
+
+Keep it short: a reader who wants the full detail follows the PR link.

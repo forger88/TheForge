@@ -86,6 +86,12 @@ LIGHT_GATE_RE = re.compile(
 NA_RE = re.compile(r"^\s*n/?a\b", re.IGNORECASE)
 # .forge/review-gate.md: an axis the builder reviewed itself never clears the full gate.
 BUILDERS_OWN_RE = re.compile(r"builder['\u2019]s own|no sub-agent tool", re.IGNORECASE)
+# .forge/review-gate.md, "A builder with no sub-agent tool asks its parent for the review":
+# an axis still waiting for its reviewer, or reviewed only in chat, carries no clean-context
+# marker and must not clear the full gate either. A bare `\bclean\b` was rejected: it also
+# matches a verdict like "clean, no findings" that says nothing about who reviewed it.
+CLEAN_CONTEXT_RE = re.compile(r"clean[\s-]*context|clean\s+sub-?agent", re.IGNORECASE)
+AWAITING_RE = re.compile(r"^\s*[*_`]{0,2}\s*awaiting\b", re.IGNORECASE)
 
 # The template puts `Review:` at the start of its own line/paragraph, so a PR
 # body that quotes the field's format elsewhere (to explain a departure, say)
@@ -214,6 +220,13 @@ def check(body: str, paths: list[str]) -> list[str]:
             )
             continue
         if field_is_real(text):
+            if AWAITING_RE.match(text) or not CLEAN_CONTEXT_RE.search(text.strip()):
+                failures.append(
+                    f"Review: {label} doesn't record a clean-context review that has run (record the "
+                    f"reviewer's performer, tier and `clean-context` once it has); an axis still awaiting "
+                    f"its review, or reviewed only in chat, doesn't clear the full gate "
+                    f"(.forge/review-gate.md, \"A builder with no sub-agent tool asks its parent for the review\")."
+                )
             continue
         if field_is_light_gate_na(text):
             if not eligible:

@@ -60,3 +60,11 @@ A new, reworded or removed principle lands only once the owner has approved its 
 **Why:** model capability and instruction length are both paid for on every run; a more capable model than the task needs, or a longer instruction than clear direction needs, multiplies that cost across every thread and every reader.
 
 **Enforcement:** Review only (`code-review` Standards axis); `.forge/model-tiers.md` is the mapping from task to the least capable sufficient tier.
+
+## Release-note labels reflect what a consumer must act on (Default)
+
+**Principle:** A change a consumer must act on after syncing is labelled release:integrator.
+
+**Why:** two separate post-merge review findings (a re-paste file, new Copier questions, a new label `forge-sync` will not create) recorded integrator-facing changes as `release:internal`, which would have silently hidden them from the next consumer's release notes.
+
+**Enforcement:** Review only (`code-review` Standards axis); `docs/agents/triage-labels.md`'s "Release-note labels" table is the operative label definitions and the pre-merge re-check step this principle backs.

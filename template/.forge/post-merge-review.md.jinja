@@ -47,6 +47,11 @@ Some text reaches `main` without ever being a line in a file's diff: a PR's titl
 The security axis also covers this merge-written text for every PR in the window, asking whether any of it disclosed something it shouldn't have, or carried a closing keyword next to the wrong issue or PR.
 A finding here is graded like any other; fixing text already on `main` is the project's own call (editing a PR body, a history rewrite) and stays outside this file-only pass.
 
+## Governed artefacts
+
+Each reviewer's brief names, for every file in its batch that the artefact map (`.forge/agent-skills-and-reference.md`) lists, that file's governing skill, and the reviewer checks the surviving lines against it and against the file's own Conventions section where it has one (SDLC-119).
+A brief that leaves it implied gets a review that skips it.
+
 ## Findings
 
 Findings are classified Must, Should, Could or Won't (`.agents/skills/code-review/SKILL.md`, "Triaging findings (MoSCoW)").

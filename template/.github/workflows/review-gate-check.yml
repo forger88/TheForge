@@ -48,21 +48,88 @@ jobs:
           gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate --jq '.[].filename' > /tmp/pr_files.txt
       - name: "Check the Review: field against the review gate"
         run: python3 scripts/check_review_gate.py /tmp/pr_body.txt /tmp/pr_files.txt
-      - name: Check the SDLC wording hold, if the lifecycle doc changed
-        # Read-only: fetches two file versions through the contents API, no
-        # dependency install or test run, same cost profile as the step above.
+      - name: Check the SDLC wording hold and integrator steps, if the answers file changed
+        # Triggered by `.copier-answers.yml` appearing in the file list, not
+        # by the lifecycle doc's own presence there (docs/security/threat-model.md,
+        # T15): the doc is fetched unconditionally once triggered. `_src_path`
+        # is read from the PR's BASE answers file, never head -- a sync PR's
+        # own head file is attacker-controlled. A clone or fetch failure, or
+        # an unresolvable `_commit`, fails this step closed (bash's default
+        # errexit). `UPSTREAM_SRC_READ_TOKEN` (optional repo secret) lets the
+        # clone reach a private `_src_path`; GitHub Actions masks a secret's
+        # literal value in logs automatically, including inside a failed
+        # git command's own error text, so the credentialed URL never needs
+        # its own redaction here the way display_url() redacts it elsewhere.
+        # A fork PR gets no secrets for a plain `pull_request` trigger (this
+        # workflow's own trigger, not `pull_request_target` -- see
+        # docs/design/theforge-self-governance.md's entry-points table), so
+        # the token is simply empty there and the clone still fails closed.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          UPSTREAM_SRC_READ_TOKEN: ${{ secrets.UPSTREAM_SRC_READ_TOKEN }}
         run: |
-          if grep -qxF "docs/software-development-lifecycle.md" /tmp/pr_files.txt; then
-            gh api "repos/$REPO/contents/docs/software-development-lifecycle.md?ref=$BASE_SHA" --jq '.content' 2>/dev/null | base64 -d > /tmp/sdlc_old.md || : > /tmp/sdlc_old.md
-            gh api "repos/$REPO/contents/docs/software-development-lifecycle.md?ref=$HEAD_SHA" --jq '.content' | base64 -d > /tmp/sdlc_new.md
-            python3 scripts/check_sdlc_wording_hold.py /tmp/pr_body.txt /tmp/sdlc_old.md /tmp/sdlc_new.md
+          if ! grep -qxF ".copier-answers.yml" /tmp/pr_files.txt; then
+            echo ".copier-answers.yml not changed in this PR; nothing to check"
+            exit 0
+          fi
+
+          gh api "repos/$REPO/contents/.copier-answers.yml?ref=$BASE_SHA" --jq '.content' 2>/dev/null | base64 -d > /tmp/answers_old.yml || : > /tmp/answers_old.yml
+          gh api "repos/$REPO/contents/.copier-answers.yml?ref=$HEAD_SHA" --jq '.content' | base64 -d > /tmp/answers_new.yml
+          gh api "repos/$REPO/contents/docs/software-development-lifecycle.md?ref=$BASE_SHA" --jq '.content' 2>/dev/null | base64 -d > /tmp/sdlc_old.md || : > /tmp/sdlc_old.md
+          gh api "repos/$REPO/contents/docs/software-development-lifecycle.md?ref=$HEAD_SHA" --jq '.content' | base64 -d > /tmp/sdlc_new.md
+
+          OLD_COMMIT=$(python3 -c "import sys; sys.path.insert(0,'scripts'); import bootstrap; print(bootstrap.parse_answers(open(sys.argv[1]).read()).get('_commit') or '')" /tmp/answers_old.yml)
+          NEW_COMMIT=$(python3 -c "import sys; sys.path.insert(0,'scripts'); import bootstrap; print(bootstrap.parse_answers(open(sys.argv[1]).read()).get('_commit') or '')" /tmp/answers_new.yml)
+          SRC_PATH=$(python3 -c "import sys; sys.path.insert(0,'scripts'); import bootstrap; print(bootstrap.parse_answers(open(sys.argv[1]).read()).get('_src_path') or '')" /tmp/answers_old.yml)
+
+          if [ -z "$OLD_COMMIT" ] || [ -z "$NEW_COMMIT" ] || [ "$OLD_COMMIT" = "$NEW_COMMIT" ]; then
+            echo "not a sync (_commit unchanged, or missing from the base answers file); nothing to check"
+            exit 0
+          fi
+          if [ -z "$SRC_PATH" ]; then
+            echo "error: .copier-answers.yml has no _src_path; cannot verify the SDLC hold" >&2
+            exit 1
+          fi
+          case "$OLD_COMMIT" in -*) echo "error: _commit (old) begins with '-': $OLD_COMMIT" >&2; exit 1 ;; esac
+          case "$NEW_COMMIT" in -*) echo "error: _commit (new) begins with '-': $NEW_COMMIT" >&2; exit 1 ;; esac
+
+          SRC_URL=$(python3 -c "import sys; sys.path.insert(0,'scripts'); from _git_subprocess import source_url; print(source_url(sys.argv[1]))" "$SRC_PATH")
+          CLONE_URL=$(SRC_URL="$SRC_URL" python3 -c "
+          import os, sys
+          sys.path.insert(0, 'scripts')
+          from _git_subprocess import authenticated_url
+          print(authenticated_url(os.environ['SRC_URL'], os.environ.get('UPSTREAM_SRC_READ_TOKEN', '')))
+          ")
+          rm -rf /tmp/upstream-clone
+          git clone --quiet -- "$CLONE_URL" /tmp/upstream-clone
+
+          # Each commit must resolve -- an unresolvable rev fails closed,
+          # distinct from a doc legitimately absent at a resolvable commit
+          # (which reads as no statements, below).
+          git -C /tmp/upstream-clone rev-parse --verify --quiet --end-of-options "$OLD_COMMIT^{commit}" > /dev/null
+          git -C /tmp/upstream-clone rev-parse --verify --quiet --end-of-options "$NEW_COMMIT^{commit}" > /dev/null
+
+          git -C /tmp/upstream-clone show --end-of-options "$OLD_COMMIT:template/docs/software-development-lifecycle.md" > /tmp/sdlc_upstream_old.md 2>/dev/null || : > /tmp/sdlc_upstream_old.md
+          git -C /tmp/upstream-clone show --end-of-options "$NEW_COMMIT:template/docs/software-development-lifecycle.md" > /tmp/sdlc_upstream_new.md 2>/dev/null || : > /tmp/sdlc_upstream_new.md
+
+          python3 scripts/check_sdlc_wording_hold.py /tmp/pr_body.txt /tmp/answers_old.yml /tmp/answers_new.yml /tmp/sdlc_old.md /tmp/sdlc_new.md /tmp/sdlc_upstream_old.md /tmp/sdlc_upstream_new.md
+
+          # Same clone as the SDLC-hold check above (same job, same
+          # workspace, so /tmp/upstream-clone and $OLD_COMMIT/$NEW_COMMIT
+          # from earlier in this step are still there -- no second clone).
+          # check_integrator_steps.py reads docs/release-notes.md and any
+          # docs/release-notes/*.integrator-steps.json sidecar from the
+          # clone's own root, never a subdir, since release notes describe
+          # changes to TheForge itself, not the seed a generated project
+          # receives. Missing on the base branch only for the one PR that
+          # adds it, the same as check_forge_sync_trust_record.py below.
+          if [ -f scripts/check_integrator_steps.py ]; then
+            python3 scripts/check_integrator_steps.py --template /tmp/upstream-clone --old "$OLD_COMMIT" --new "$NEW_COMMIT" --pr-body /tmp/pr_body.txt
           else
-            echo "lifecycle doc not changed in this PR; nothing to check"
+            echo "scripts/check_integrator_steps.py not on the base branch yet; skipping"
           fi
       - name: Check the trust-diff record, if the answers file changed
         # Read-only, same cost profile as the step above. check_forge_sync_trust_record.py's

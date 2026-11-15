@@ -9,6 +9,12 @@ framing sentences, every always-loaded `@.forge/` import, and the
 reference-files sentence. This guards that shape: losing the entrypoint line
 would silently disable every forge rule, including this review gate itself.
 
+Where `AGENTS.md` exists, it must also stay a thin shell: no `##`-or-deeper
+heading, at most AGENTS_MAX_WORDS words, and no 30+-char line duplicated from
+`CLAUDE.md` or any `.forge/*` file -- the condensed restatement that shape
+rules out belongs in `CLAUDE.md` (or the forge-owned file it imports), read
+once, not copied into a second file that then drifts from it.
+
 Two hooks run this script:
 
 - Consumer side (`forge-entrypoint`), against a generated project's own
@@ -34,6 +40,9 @@ REFERENCE_RE = re.compile(r"`(\.forge/[\w.-]+\.md)`")
 CLAUDE_NAME = "CLAUDE.md"
 AGENTS_NAME = "AGENTS.md"
 ENTRYPOINT_NAME = ".forge/entrypoint.md"
+AGENTS_HEADING_RE = re.compile(r"^#{2,}\s", re.M)
+AGENTS_MAX_WORDS = 300
+MIN_SHARED_LINE_LEN = 30
 
 
 def entrypoint_targets(text: str) -> tuple[list[str], list[str]]:
@@ -84,6 +93,43 @@ def _forge_file_names(root: Path, template: bool) -> list[str]:
     return names
 
 
+def _forge_texts(root: Path) -> dict[str, str]:
+    """Every file directly under `.forge/`, by name, read as text. Shared by
+    every check below that needs the forge-owned files' own content rather
+    than just their names (`_forge_file_names` covers that narrower need)."""
+    forge_dir = root / ".forge"
+    if not forge_dir.is_dir():
+        return {}
+    return {
+        entry.name: entry.read_text(encoding="utf-8")
+        for entry in sorted(forge_dir.iterdir())
+        if entry.is_file()
+    }
+
+
+def _long_lines(text: str) -> set[str]:
+    """Every line of `text`, stripped, at least MIN_SHARED_LINE_LEN chars --
+    short enough lines (a heading, a single word) collide too often to mean
+    real duplication."""
+    return {line.strip() for line in text.splitlines() if len(line.strip()) >= MIN_SHARED_LINE_LEN}
+
+
+def _shared_long_lines(a_text: str, b_texts: dict[str, str]) -> list[tuple[str, str]]:
+    """Returns (source name, line) pairs: every long line in `a_text` that
+    also appears verbatim in one of `b_texts` (name -> text), sorted for a
+    deterministic report. Shared by the CLAUDE.md.jinja-vs-.forge check and
+    the AGENTS.md-vs-CLAUDE.md/.forge check below, so both read the same
+    "this rule text lives in exactly one place" rule the same way."""
+    a_lines = _long_lines(a_text)
+    if not a_lines:
+        return []
+    shared: list[tuple[str, str]] = []
+    for name, text in sorted(b_texts.items()):
+        for line in sorted(a_lines & _long_lines(text)):
+            shared.append((name, line))
+    return shared
+
+
 def problems(root: Path, template: bool) -> list[str]:
     errors: list[str] = []
 
@@ -111,6 +157,16 @@ def problems(root: Path, template: bool) -> list[str]:
         for imp in agents_imports:
             if imp != ENTRYPOINT_NAME and imp in entrypoint_imports:
                 errors.append(f"{AGENTS_NAME} has '@{imp}', which {ENTRYPOINT_NAME} already imports (double load)")
+        if AGENTS_HEADING_RE.search(agents_text):
+            errors.append(f"{AGENTS_NAME} has a '##'-or-deeper heading; keep it a flat shell with no sub-headings")
+        word_count = len(agents_text.split())
+        if word_count > AGENTS_MAX_WORDS:
+            errors.append(f"{AGENTS_NAME} is {word_count} words, over the {AGENTS_MAX_WORDS}-word shell cap")
+        duplicate_sources: dict[str, str] = dict(_forge_texts(root))
+        if claude_text is not None:
+            duplicate_sources[CLAUDE_NAME] = claude_text
+        for name, shared in _shared_long_lines(agents_text, duplicate_sources):
+            errors.append(f"{AGENTS_NAME} carries rule text also in {name}: {shared!r}")
 
     for target in entrypoint_imports + entrypoint_refs:
         if _read(root, target, template) is None:
@@ -122,19 +178,8 @@ def problems(root: Path, template: bool) -> list[str]:
             errors.append(f"{forge_name} is not imported or referenced by {ENTRYPOINT_NAME}")
 
     if template and claude_text is not None:
-        claude_lines = {line.strip() for line in claude_text.splitlines() if len(line.strip()) >= 30}
-        forge_dir = root / ".forge"
-        if forge_dir.is_dir() and claude_lines:
-            for entry in sorted(forge_dir.iterdir()):
-                if not entry.is_file():
-                    continue
-                forge_lines = {
-                    line.strip()
-                    for line in entry.read_text(encoding="utf-8").splitlines()
-                    if len(line.strip()) >= 30
-                }
-                for shared in sorted(claude_lines & forge_lines):
-                    errors.append(f"CLAUDE.md.jinja carries forge-authored rule text also in {entry.name}: {shared!r}")
+        for name, shared in _shared_long_lines(claude_text, _forge_texts(root)):
+            errors.append(f"CLAUDE.md.jinja carries rule text also in {name}: {shared!r}")
 
     return errors
 

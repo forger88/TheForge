@@ -39,27 +39,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bootstrap  # noqa: E402
+from _git_subprocess import endpoints_match  # noqa: E402
 
 TRUST_DIFF_RE = re.compile(
     r"Trust diff:\s*(?P<old>\S+)\.\.(?P<new>\S+)\s+(?P<result>[^\n]*)",
     re.IGNORECASE,
 )
-_DESCRIBE_SUFFIX_RE = re.compile(r"^.*-\d+-g([0-9a-f]+)$", re.IGNORECASE)
-
-
-def _normalise(endpoint: str) -> str:
-    """A `git describe` string (`<tag>-<n>-g<hex>`) reduces to its trailing
-    `<hex>`; a bare tag or SHA passes through unchanged."""
-    match = _DESCRIBE_SUFFIX_RE.match(endpoint)
-    return match.group(1) if match else endpoint
-
-
-def _endpoints_match(reported: str, actual: str) -> bool:
-    reported, actual = _normalise(reported), _normalise(actual)
-    if reported == actual:
-        return True
-    shorter, longer = sorted((reported, actual), key=len)
-    return bool(shorter) and longer.startswith(shorter)
 
 
 def _read(path: Path) -> str:
@@ -86,7 +71,7 @@ def check(body: str, old_answers_text: str, new_answers_text: str) -> list[str]:
         ]
 
     failures: list[str] = []
-    if not _endpoints_match(match["old"], old_commit) or not _endpoints_match(match["new"], new_commit):
+    if not endpoints_match(match["old"], old_commit) or not endpoints_match(match["new"], new_commit):
         failures.append(
             f'The "Trust diff" line\'s range ({match["old"]}..{match["new"]}) does not match '
             f"this PR's actual answers-file range ({old_commit}..{new_commit}). Re-run "

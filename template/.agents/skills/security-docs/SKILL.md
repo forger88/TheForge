@@ -1,6 +1,6 @@
 ---
 name: security-docs
-description: "Produce, update, or reconcile a repo's STRIDE threat model and the rest of its security docs, in three modes: bootstrap (a repo with no threat model yet), delta (the security section of a design or a design-exit pass), and reconcile (bring an existing threat model current against the repo's head). Runs on design-tier. Use whenever a design, a design-exit Structure guidance, a release gate, or a post-merge security finding needs a security-doc write, rather than hand-writing one each time."
+description: "Produce, update, or reconcile a repo's STRIDE threat model and the rest of its security docs, in three modes: bootstrap (a repo with no threat model yet), delta (the security section of a design or a design-exit pass), and reconcile (bring an existing threat model current against the repo's head). Runs on design-tier. Use whenever a design, a design-exit Structure guidance, a release gate, or a post-merge security finding needs a security-doc write, rather than hand-writing one each time. Also governs the form of any other edit to a file under docs/security/."
 disable-model-invocation: true
 ---
 

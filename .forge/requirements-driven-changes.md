@@ -10,13 +10,16 @@ Approval applies to requirement wording, not to the file.
 The owner approves a PR touching the specification only when it changes the wording of a "shall" statement: a new, reworded or removed requirement.
 A PR that touches the file without touching any requirement's wording (a stale cross-reference, a typo, a status change, reformatting) self-merges like any other docs PR.
 
+Every edit to the specification, including a status, Notes, Evidence, known-gaps or traceability change made as a closing step, follows `.agents/skills/requirements-spec/SKILL.md`, which sets the document's form (SDLC-119).
+The `requirements-evidence` pre-commit hook (`scripts/check_requirements_evidence.py`) checks its Evidence paragraphs.
+
 ## 1. Every PR names its requirements
 
 The PR body follows `.github/pull_request_template.md`, whose `Requirements:` line lists the requirement IDs the change implements, restores or affects, for example `FR-001, NF-004`.
 Internal work with no behaviour a requirement describes (refactors, CI, tooling, docs) says `Requirements: none (internal)`.
 Tickets from `to-tickets` and `triage` carry the IDs too.
 
-The template's other evidence lines are filled in on every PR, because with self-merge as the gate they are the only record of those facts.
+The PR template's other evidence lines are filled in on every PR, because with self-merge as the gate they are the only record of those facts.
 `Evidence:` is the command that went red then green, and for a guard test the run with the guard removed.
 For a fix to a finding or bug, `Evidence:` also lists, by name, the other members of the class the fix checked, and the source that list came from (`.forge/review-gate.md`, "Fix the class of bug, not just the flagged line").
 `Tests:` is the scoped test commands run and whether coverage of the touched modules held.

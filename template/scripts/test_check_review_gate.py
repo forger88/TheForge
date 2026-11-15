@@ -94,6 +94,65 @@ class BuildersOwnAxisFails(unittest.TestCase):
         self.assertEqual(failures, [])
 
 
+class AxisMustRecordACleanContextReview(unittest.TestCase):
+    """.forge/review-gate.md, "A builder with no sub-agent tool asks its parent for the
+    review": an axis that is real content but still waiting for its reviewer, or
+    reviewed only in chat, carries no clean-context marker and must not clear the
+    full gate either."""
+
+    def test_awaiting_standards_fails(self) -> None:
+        failures = check_review_gate.check(
+            body("awaiting independent review, requested from the parent build thread", REAL_SPEC, REAL_SELF_REVIEW),
+            ["scripts/thing.py"],
+        )
+        self.assertEqual(len(failures), 1)
+        self.assertIn("Standards", failures[0])
+
+    def test_awaiting_with_clean_context_wording_still_fails(self) -> None:
+        """AWAITING_RE has to do its own work: this entry already contains `clean-context`,
+        so only the `awaiting` clause, not CLEAN_CONTEXT_RE, is what catches it."""
+        failures = check_review_gate.check(
+            body("awaiting clean-context review from the parent build thread", REAL_SPEC, REAL_SELF_REVIEW),
+            ["scripts/thing.py"],
+        )
+        self.assertEqual(len(failures), 1)
+        self.assertIn("Standards", failures[0])
+
+    def test_reviewed_in_chat_only_spec_fails(self) -> None:
+        failures = check_review_gate.check(
+            body(REAL_STANDARDS, "independent review could not run, left unmerged", REAL_SELF_REVIEW),
+            ["scripts/thing.py"],
+        )
+        self.assertEqual(len(failures), 1)
+        self.assertIn("Spec", failures[0])
+
+    def test_real_entry_with_no_context_marker_fails(self) -> None:
+        failures = check_review_gate.check(
+            body("sub-agent abc of https://example.invalid/session, build-tier -- no findings", REAL_SPEC, REAL_SELF_REVIEW),
+            ["scripts/thing.py"],
+        )
+        self.assertEqual(len(failures), 1)
+        self.assertIn("Standards", failures[0])
+
+    def test_parent_started_review_with_clean_context_passes(self) -> None:
+        failures = check_review_gate.check(
+            body(
+                "sub-agent a1 of https://example.invalid/session, started by the parent on the builder's "
+                "request, build-tier, clean-context -- no findings",
+                REAL_SPEC,
+                REAL_SELF_REVIEW,
+            ),
+            ["scripts/thing.py"],
+        )
+        self.assertEqual(failures, [])
+
+    def test_light_gate_na_entry_still_passes_with_no_clean_context_text(self) -> None:
+        failures = check_review_gate.check(
+            body(LIGHT_NA, LIGHT_NA, REAL_SELF_REVIEW), ["docs/design/a.md"]
+        )
+        self.assertEqual(failures, [])
+
+
 class LightGateOnNonDocFails(unittest.TestCase):
     """Light gate claimed on a non-`.md` config file -- never eligible."""
 

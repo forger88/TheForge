@@ -135,6 +135,8 @@ These paths are as a generated project has them (what this skill actually ships 
 - `.forge/coordinator-core.md` ↔ `.agents/skills/queue-sweep/SKILL.md`: both describe the default-queue rule and must list the same hold reasons.
 - `instructing-agents.md` ↔ `scripts/project_init_checklist.md`: `instructing-agents.md` points at the checklist file as the one copy of the project-initiation list; a change to either must keep that pointer accurate.
 - `.forge/self-review.md` ↔ this file: the condensed file's "Triggered checklists" list must name exactly the checklists this file actually has, in the same order, with no action inlined into the condensed bullet that isn't also here.
+- `.forge/agent-skills-and-reference.md`'s artefact-map table ↔ `.agents/skills/code-review/SKILL.md` step 3, this file's "Governed artefact checklist" and `.agents/skills/post-merge-review/SKILL.md`'s "Governed artefacts" grading rule: all four must describe the same mechanism and, between them, cover a project's own `CLAUDE.md`-added rows too.
+- `.agents/skills/requirements-spec/SKILL.md`'s "Evidence" bullet ↔ `scripts/check_requirements_evidence.py`: the skill's shape rules (the bold label, the comma-separated backticked paths, file level only) and the checker's actual parsing must describe the same shape.
 
 1. **Read the other file as it stands on `main`, not from memory.** A pair drifts exactly because someone trusted what the other file used to say.
 2. **Reconcile it in the same PR.** Update the other file's half of the shared rule, list or pointer to match, or confirm in the PR body that no change is needed and why.
@@ -150,3 +152,30 @@ Run this whenever the diff turns one of the owner's specific, one-off instructio
 2. **Check the ticket's `Request-trace:` line covers the generalization, not just the instance.** A request that is genuine for the one-off instance does not, by itself, cover turning it into a standing rule (SDLC-014's scope clause); the generalization needs its own request before it merges.
 3. **Confirm the owner's plain yes/no check-in is recorded.** The ticket or the PR body records the owner's answer to "do you want this process change folded into the repository's instruction set?" (or words to that effect), in the owner's own words — a scope confirmation, not a wording-approval quote.
 4. A diff that generalizes an instruction with no recorded check-in is a finding: it does not merge until the owner has answered, or the generalization is narrowed back to the one ticket it was asked for.
+
+## Governed artefact checklist (triggered)
+
+Run this whenever the diff touches a path the artefact map lists (`.forge/agent-skills-and-reference.md`, "Artefacts and the skills that govern them") and the PR is on the light gate, which has no Standards axis to check it (SDLC-119).
+On the full gate the Standards axis already checks it: confirm its `Review:` entry names each mapped file, and run this checklist only for a mapped file it missed.
+
+1. **Read the governing skill's form rules on this branch**, the sections the map row names, not from memory.
+2. **Check every changed line of each mapped file against them**, and against the file's own Conventions section if it has one; a Conventions line that contradicts the skill is itself a finding.
+3. **Fix any break in this PR** before it merges.
+4. **Record it**: the self-review entry on the `Review:` line names each mapped file and its governing skill.
+
+## Sync-impact category checklist (triggered)
+
+Run this whenever the diff is about to be recorded `release:internal` or `Release note: none`, in a project that ships shared process, scaffolding, or configuration that other repositories pull in on their own schedule (a template, a shared library, a platform, an SDK). A change a downstream repository must act on after pulling in the update is `release:integrator`, not `release:internal` (`docs/agents/triage-labels.md`, "Release-note labels").
+
+Check the diff against every one of these eight categories, not only the one the ticket already names, and record on the PR's `Evidence:` line which source was searched for each and what was found:
+
+1. **A shipped guard or hook that now reads or checks a file the downstream repository owns or seeds itself.** (New enforcement over content the update never rewrites still lands on that repository's next commit.)
+2. **A new or changed setup-time question** the project's own generator or init step asks. Exclude a derived value nobody is ever asked to answer.
+3. **A new label or tracker** a shipped bootstrap or setup step creates.
+4. **A new secret, variable or permission** a shipped workflow or settings file reads.
+5. **A renamed or deleted shipped file.**
+6. **A re-paste snippet** whose content or instructions changed.
+7. **Shipped text that now depends on content only a new project's own seed carries**, so the citation or reference dangles for a downstream repository that never gets the seed.
+8. **Shipped process or governance wording** that changes what a downstream repository's own review gate requires.
+
+A finding in any category gets at least a `release:integrator` note; one that breaks a downstream repository's next commit without action also gets `breaking`. A category with no finding still gets a line on the `Evidence:` entry naming what was searched and that nothing was found.

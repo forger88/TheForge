@@ -113,3 +113,27 @@ Remove an entry once the change has gone upstream and come back through `forge-s
 **Why:** the owner does not want Actions credits spent on CI; the workflow also never ran, because an unquoted `Review: ` in a step name made it invalid YAML. Restoring it is parked in a hanging ticket ("Re-enable review-gate-check as a CI workflow if the local merge-step check proves unreliable").
 
 **Upstream candidate:** no, project-specific. The template's copy has the same YAML bug, tracked in the ticket "Fix invalid YAML in template review-gate-check workflow".
+
+### `.agents/skills/build-thread-brief/SKILL.md`
+
+**Changed:** added a "Forge-porting tickets" bullet: a ticket whose content ports material from a consuming project runs `CLAUDE.md`'s "Back-porting from a consuming project (upstream first)" steps 1-3 and "TheForge stays project-neutral"'s three checks, recording the result on the PR's `Neutrality:` field.
+
+**Why:** the ticket "Decide how a ticket that ports content into TheForge names its decontamination pass" (serving an open owner question an earlier forge-porting ticket carried, since answering it there would have blocked that ticket's own build): nothing made a build thread's brief name the back-porting procedure for a future forge-porting ticket, so a thread picking one up through the ordinary queue would run the standard mechanical scan against the committed denylist only, missing the source project's own terms. The owner chose the standard-brief-line option over a dedicated skill.
+
+**Upstream candidate:** no, project-specific. Porting content *into* TheForge from a consuming project is a concept unique to this repository's own self-governance; no generated project has one.
+
+### `.agents/skills/forge-sync/SKILL.md`
+
+**Changed:** added a "Report the sync back to the owner" closing step, from the owner's own request for a sync's closing summary, and one cross-reference to it from "Review and merge". `template/.agents/skills/forge-sync/SKILL.md` is unchanged, so the two files now diverge.
+
+**Why:** the ticket scoped the change to this project's own rendered copy only, so the owner can see it land and read a closing report on the next sync of this repository's own `.agents/` content from upstream TheForge before it is carried into the shipped skill that every other consuming project gets.
+
+**Upstream candidate:** yes, rewritten generically. The new step names no project-specific term, so it can go upstream unchanged; it hasn't been proposed there yet.
+
+### `.forge/main-health-patterns.md`
+
+**Changed:** added a paragraph to "Patterns worth recording" naming this repository's own fourth recurrence of the same post-merge-review finding shape, with its merged-PR history.
+
+**Why:** `.forge/main-health-patterns.md`'s own header says this file states what the Main Health thread watches "for this project"; the fix ticket that introduced this paragraph named this exact path for recording the recurrence, and the pattern itself (a category-8-shaped PR search missing the fix's own diff and any guard-script change outside the paths a prior round happened to list) cites this repository's own merged-PR history throughout, so it reads as this project's own experience, not generic guidance any consuming project could use unchanged.
+
+**Upstream candidate:** no, project-specific. The paragraph is written entirely in terms of this repository's own issue and PR history; a generated project has none of that history and would gain nothing from carrying this text forward on its next sync.

@@ -32,6 +32,64 @@ from _check_merge_text_harness import (
     _files_select_predicate,
     run_check_merge_text,
 )
+from _git_env import clean_git_env
+
+
+def _upstream_repo_with_release(root: Path, release_notes: str, tag: str) -> tuple[str, str, str]:
+    """A throwaway upstream git repo with an initial empty commit (`old`) and
+    a second commit (`new`, tagged `tag`) that adds `docs/release-notes.md`
+    at repo root -- the local stand-in for the clone
+    check-merge-text.sh's own integrator-steps guard reads. Returns
+    (repo_path, old_sha, new_sha)."""
+    repo = root / "upstream-repo"
+    repo.mkdir()
+    env = clean_git_env()
+    subprocess.run(["git", "init", "-q"], cwd=repo, env=env, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, env=env, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, env=env, check=True)
+    (repo / "README.md").write_text("placeholder\n")
+    subprocess.run(["git", "add", "-A"], cwd=repo, env=env, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "old"], cwd=repo, env=env, check=True)
+    old_sha = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repo, env=env, check=True, capture_output=True, text=True
+    ).stdout.strip()
+    (repo / "docs").mkdir()
+    (repo / "docs" / "release-notes.md").write_text(release_notes)
+    subprocess.run(["git", "add", "-A"], cwd=repo, env=env, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "new"], cwd=repo, env=env, check=True)
+    new_sha = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repo, env=env, check=True, capture_output=True, text=True
+    ).stdout.strip()
+    subprocess.run(["git", "tag", tag], cwd=repo, env=env, check=True)
+    return str(repo), old_sha, new_sha
+
+
+def _upstream_repo(root: Path, old_doc: str, new_doc: str) -> tuple[str, str, str]:
+    """A throwaway upstream git repo with two commits, each setting
+    template/docs/software-development-lifecycle.md -- the local stand-in
+    for `_src_path` that check-merge-text.sh's own `git clone`/`git show`
+    reads from. Returns (repo_path, old_sha, new_sha)."""
+    repo = root / "upstream-repo"
+    repo.mkdir()
+    env = clean_git_env()
+    subprocess.run(["git", "init", "-q"], cwd=repo, env=env, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, env=env, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, env=env, check=True)
+    doc = repo / "template" / "docs" / "software-development-lifecycle.md"
+    doc.parent.mkdir(parents=True)
+    doc.write_text(old_doc)
+    subprocess.run(["git", "add", "-A"], cwd=repo, env=env, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "old"], cwd=repo, env=env, check=True)
+    old_sha = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repo, env=env, check=True, capture_output=True, text=True
+    ).stdout.strip()
+    doc.write_text(new_doc)
+    subprocess.run(["git", "add", "-A"], cwd=repo, env=env, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "new"], cwd=repo, env=env, check=True)
+    new_sha = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repo, env=env, check=True, capture_output=True, text=True
+    ).stdout.strip()
+    return str(repo), old_sha, new_sha
 
 
 class ChecksMergeTextScan(unittest.TestCase):
@@ -925,18 +983,23 @@ class RunsTheReviewGuardsAtTheMerge(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_a_failed_contents_fetch_for_a_guard_refuses_loudly(self) -> None:
-        result = run_check_merge_text(pr_files={"docs/software-development-lifecycle.md": b"x\n"})
+        # .copier-answers.yml, not the lifecycle doc, is the trigger now --
+        # its own fetch is what fails here, with no FAKE_GH_CONTENTS_DIR set.
+        result = run_check_merge_text(pr_files={".copier-answers.yml": b"x\n"})
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("could not fetch", result.stderr)
 
-    def test_the_sdlc_guard_runs_when_the_lifecycle_doc_changes(self) -> None:
+    def test_the_guards_no_op_when_the_answers_file_is_unchanged_across_the_sync(self) -> None:
+        # Same _commit at both refs: not a sync, so neither guard has
+        # anything to verify, even though .copier-answers.yml is (somehow)
+        # in the PR's file list.
         with tempfile.TemporaryDirectory() as tmp:
             for ref in ("basesha", "deadbeef"):
-                d = Path(tmp) / ref / "docs"
+                d = Path(tmp) / ref
                 d.mkdir(parents=True)
-                (d / "software-development-lifecycle.md").write_text("- **SDLC-001**: a.\n")
+                (d / ".copier-answers.yml").write_text("_commit: v1.0.0\n")
             result = run_check_merge_text(
-                pr_files={"docs/software-development-lifecycle.md": b"x\n"},
+                pr_files={".copier-answers.yml": b"x\n"},
                 extra_env={"FAKE_GH_CONTENTS_DIR": tmp},
             )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -956,24 +1019,126 @@ class RunsTheReviewGuardsAtTheMerge(unittest.TestCase):
 
     def test_an_unheld_sdlc_wording_change_in_a_sync_pr_is_refused(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            for ref, text in (("basesha", "a."), ("deadbeef", "b.")):
-                d = Path(tmp) / ref / "docs"
+            upstream_path, old_sha, new_sha = _upstream_repo(
+                Path(tmp),
+                "- **SDLC-001**: a.\n",
+                "- **SDLC-001**: b.\n",
+            )
+            for ref, commit in (("basesha", old_sha), ("deadbeef", new_sha)):
+                d = Path(tmp) / ref
                 d.mkdir(parents=True)
-                (d / "software-development-lifecycle.md").write_text(f"- **SDLC-001**: {text}\n")
+                (d / ".copier-answers.yml").write_text(
+                    f"_commit: {commit}\n_src_path: '{upstream_path}'\n"
+                )
+                doc_dir = d / "docs"
+                doc_dir.mkdir()
+                (doc_dir / "software-development-lifecycle.md").write_text(f"- **SDLC-001**: {commit}.\n")
             result = run_check_merge_text(
-                body=CLEAN_BODY.replace("A clean PR body.", "Drift before this sync: none"),
-                pr_files={"docs/software-development-lifecycle.md": b"x\n"},
+                body=CLEAN_BODY.replace(
+                    "A clean PR body.", f"Trust diff: {old_sha}..{new_sha} clean"
+                ),
+                pr_files={".copier-answers.yml": b"x\n"},
                 extra_env={"FAKE_GH_CONTENTS_DIR": tmp},
             )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("SDLC wording hold guard failed", result.stderr)
 
+    def test_an_upstream_change_the_lifecycle_doc_never_shows_in_the_file_list_is_still_caught(self) -> None:
+        # The exact regression this fix targets: the project's own
+        # lifecycle doc is not itself in the PR's changed-file list (it
+        # never appears in pr_files below), but upstream changed a
+        # statement between the two _commits and the project's own doc
+        # let the new wording through unreverted. A file-list-gated
+        # trigger would see nothing to check here; the .copier-answers.yml
+        # trigger still catches it.
+        with tempfile.TemporaryDirectory() as tmp:
+            old_text = "- **SDLC-001**: Old wording.\n"
+            new_text = "- **SDLC-001**: New wording that slipped through.\n"
+            upstream_path, old_sha, new_sha = _upstream_repo(Path(tmp), old_text, new_text)
+            for ref, commit, doc_text in (("basesha", old_sha, old_text), ("deadbeef", new_sha, new_text)):
+                d = Path(tmp) / ref
+                d.mkdir(parents=True)
+                (d / ".copier-answers.yml").write_text(
+                    f"_commit: {commit}\n_src_path: '{upstream_path}'\n"
+                )
+                doc_dir = d / "docs"
+                doc_dir.mkdir()
+                (doc_dir / "software-development-lifecycle.md").write_text(doc_text)
+            result = run_check_merge_text(
+                body=CLEAN_BODY.replace(
+                    "A clean PR body.", f"Trust diff: {old_sha}..{new_sha} clean"
+                ),
+                pr_files={".copier-answers.yml": b"x\n"},  # the doc itself is NOT in this list
+                extra_env={"FAKE_GH_CONTENTS_DIR": tmp},
+            )
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("SDLC wording hold guard failed", result.stderr)
+
     def test_a_missing_base_sha_refuses_rather_than_fetching_the_default_branch(self) -> None:
         result = run_check_merge_text(
-            base_sha="", pr_files={"docs/software-development-lifecycle.md": b"x\n"}
+            base_sha="", pr_files={".copier-answers.yml": b"x\n"}
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("names no commit", result.stderr)
+
+    def test_an_unaddressed_integrator_step_in_a_sync_pr_is_refused(self) -> None:
+        release_notes = (
+            "# Release notes\n\n"
+            "## v1.0.0 (2026-01-01)\n\n"
+            "A release.\n\n"
+            "### For integrators\n\n"
+            "**Breaking changes: none**\n\n"
+            "- Create the `example` label before the next commit. (#1)\n\n"
+            "Plus 0 internal changes.\n"
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            upstream_path, old_sha, new_sha = _upstream_repo_with_release(Path(tmp), release_notes, "v1.0.0")
+            for ref, commit in (("basesha", old_sha), ("deadbeef", new_sha)):
+                d = Path(tmp) / ref
+                d.mkdir(parents=True)
+                (d / ".copier-answers.yml").write_text(f"_commit: {commit}\n_src_path: '{upstream_path}'\n")
+            result = run_check_merge_text(
+                body=CLEAN_BODY.replace(
+                    "A clean PR body.",
+                    f"Trust diff: {old_sha}..{new_sha} clean\n"
+                    f"SDLC upstream changes: {old_sha}..{new_sha} held: none; current: none\n"
+                    "SDLC wording held: none",
+                ),
+                pr_files={".copier-answers.yml": b"x\n"},
+                extra_env={"FAKE_GH_CONTENTS_DIR": tmp},
+            )
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("integrator steps guard failed", result.stderr)
+
+    def test_an_addressed_integrator_step_in_a_sync_pr_passes(self) -> None:
+        release_notes = (
+            "# Release notes\n\n"
+            "## v1.0.0 (2026-01-01)\n\n"
+            "A release.\n\n"
+            "### For integrators\n\n"
+            "**Breaking changes: none**\n\n"
+            "- Create the `example` label before the next commit. (#1)\n\n"
+            "Plus 0 internal changes.\n"
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            upstream_path, old_sha, new_sha = _upstream_repo_with_release(Path(tmp), release_notes, "v1.0.0")
+            for ref, commit in (("basesha", old_sha), ("deadbeef", new_sha)):
+                d = Path(tmp) / ref
+                d.mkdir(parents=True)
+                (d / ".copier-answers.yml").write_text(f"_commit: {commit}\n_src_path: '{upstream_path}'\n")
+            body = CLEAN_BODY.replace(
+                "A clean PR body.",
+                f"Trust diff: {old_sha}..{new_sha} clean\n"
+                f"SDLC upstream changes: {old_sha}..{new_sha} held: none; current: none\n"
+                "SDLC wording held: none\n"
+                f"Integrator steps: {old_sha}..{new_sha} 1: 1\n#1: created the label.",
+            )
+            result = run_check_merge_text(
+                body=body,
+                pr_files={".copier-answers.yml": b"x\n"},
+                extra_env={"FAKE_GH_CONTENTS_DIR": tmp},
+            )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 if __name__ == "__main__":

@@ -27,7 +27,7 @@ These issues are created once by `scripts/bootstrap.py` and are never closed, wh
 |---|---|---|
 | Post-merge review tracker | #60 | Pending notes (a comment per merged PR not yet reviewed), the watermark and run log (`.agents/skills/post-merge-review/SKILL.md`) |
 | Deferred-ideas epic | #341 | `future` ideas the owner raised and deferred |
-| Hanging epic | #342 | `hanging` items: accepted risks and deliberately deferred gaps |
+| Hanging epic | #342 | `hanging` (deliberately deferred gaps) and `deferred-accepted-risk` (owner-accepted risks) items |
 | Architecture-findings epic | #343 | `deferred-arch-finding` items from review passes |
 | Local full-suite evidence tracker | #344 | One comment per full local-suite run, each naming the commit it covered and the result of each check (`.agents/skills/watch-main-ci/SKILL.md`, Routine 2) |
 
