@@ -15,7 +15,8 @@
     "allow": [
       "Bash(git fetch origin main)",
       "Bash(git status --short)",
-      "Bash(git worktree list)"
+      "Bash(git worktree list)",
+      "Bash(python3 scripts/worktree_setup.py:*)"
     ]
   }
 }

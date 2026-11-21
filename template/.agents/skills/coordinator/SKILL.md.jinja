@@ -7,7 +7,7 @@ disable-model-invocation: true
 # Coordinator
 
 The authoritative text of the coordinator's rules is `.forge/coordinator-core.md`; this file holds only look-up procedures.
-Every rule the coordinator acts on routinely is in that file, which a coordinator session loads at the start of each session; read this one only when a situation below arises.
+Every rule the coordinator acts on routinely is in that file, loaded at the start of each session; read this one only when a situation below arises.
 TheForge's coordinator-core ADR records why the core file exists and the constraints that must survive every edit to it.
 
 ## Boot routine
@@ -18,17 +18,15 @@ This repository's own working folder is `{{ working_folder }}`.
 
 ## Briefing a grilling thread
 
-- Every grilling thread (feature-pipeline stage 2, stage 0's interview, a `needs-grilling` ticket, or any other interview the owner asks for) runs `grill-me` (`.agents/skills/grill-me/SKILL.md`, read directly; it may not be surfaced through the harness's skill listing).
-- `grill-me` is this repo's designated grilling entry point: it wraps `grilling` and adds the feature-pipeline integration (checklist ticks, issue and glossary writes).
-  Don't send a grill thread to `grill-with-docs` (`.agents/skills/grill-with-docs/SKILL.md`) instead.
-  Both come from the same upstream skill set (`.agents/skills/THIRD_PARTY.md`), so "the upstream grilling skill" doesn't by itself pick between them, but `grill-with-docs` bundles ADR and glossary drafting into the interview, and `.forge/feature-pipeline.md` routes ADRs to stage 3, not grilling: it's a confusable, wrong fit here.
-- When handing a job to a grill thread, the brief names `grill-me` explicitly, by path, every time, never just "grill" or "the grilling skill".
+- Every grilling thread (feature-pipeline stage 2, stage 0's interview, a `needs-grilling` ticket, or any other interview the owner asks for) runs `grill-me` (`.agents/skills/grill-me/SKILL.md`, read directly, since the harness may not list it).
+- `grill-me` is this repo's grilling entry point: it wraps `grilling` and adds the feature-pipeline integration (checklist ticks, issue and glossary writes).
+  Don't send a grill thread to `grill-with-docs` (`.agents/skills/grill-with-docs/SKILL.md`): it comes from the same upstream set (`.agents/skills/THIRD_PARTY.md`), so "the upstream grilling skill" doesn't pick between them, but it bundles ADR and glossary drafting into the interview, and `.forge/feature-pipeline.md` routes ADRs to stage 3.
+- The brief names `grill-me` explicitly, by path, every time, never just "grill" or "the grilling skill".
 
 ## Preserving coordinator notes
 
 The project instructions hold a zone headed `## Coordinator notes` (created as `## Coordinator notes (owner-requested, preserved on update)`; the check recognises any heading with that prefix), between the owner's own scope section and the sections the coordinator-core snippet owns.
-It holds the notes the coordinator records there at the owner's request, one dated bullet per note.
-The notes live only in the project instructions: no repo file backs them, and nothing about them is committed.
+It holds the notes the coordinator records at the owner's request, one dated bullet each, and lives only in the project instructions: no repo file backs it.
 
 What `python3 scripts/check_coordinator_core.py notes <live> <new>` reports:
 

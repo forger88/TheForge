@@ -174,6 +174,7 @@ class LightGateOnNonDocFails(unittest.TestCase):
             "CLAUDE.md",
             "docs/principles.md",
             "docs/software-development-lifecycle.md",
+            "docs/requirements/requirements-specification.md",
             ".agents/skills/self-review/SKILL.md",
             ".forge/review-gate.md",
             "docs/agents/lessons.md",
@@ -184,6 +185,37 @@ class LightGateOnNonDocFails(unittest.TestCase):
             with self.subTest(path=path):
                 failures = check_review_gate.check(body(LIGHT_NA, LIGHT_NA, REAL_SELF_REVIEW), [path])
                 self.assertEqual(len(failures), 2)
+
+
+class RequirementsSpecIsNeverLightGateEligible(unittest.TestCase):
+    """A status-only edit to the requirements specification reads like the
+    most plausible light-gate claim this file can make (a status line is
+    plain prose, changes no requirement wording, and touches no snippet
+    text) -- which is exactly why it must still fail: the gate is chosen by
+    path, never by how harmless the edit inside the path looks.
+    `.forge/requirements-driven-changes.md`'s "needs no owner approval"
+    carve-out for a non-wording edit answers the approval question only; it
+    never answers which review gate that edit gets. This goes red if
+    `docs/requirements/requirements-specification.md` is ever removed from
+    DISQUALIFYING_DOC_PATTERNS."""
+
+    def test_status_only_requirements_spec_edit_rejects_light_gate(self) -> None:
+        failures = check_review_gate.check(
+            body(LIGHT_NA, LIGHT_NA, REAL_SELF_REVIEW),
+            ["docs/requirements/requirements-specification.md"],
+        )
+        self.assertEqual(len(failures), 2)
+        for failure in failures:
+            self.assertIn("not a prose-only doc", failure)
+            self.assertIn("requirements-specification.md", failure)
+
+    def test_full_gate_on_requirements_spec_still_passes(self) -> None:
+        """A builder may always take the full gate instead."""
+        failures = check_review_gate.check(
+            body(REAL_STANDARDS, REAL_SPEC, REAL_SELF_REVIEW),
+            ["docs/requirements/requirements-specification.md"],
+        )
+        self.assertEqual(failures, [])
 
 
 class LightGateOnProseDocPasses(unittest.TestCase):

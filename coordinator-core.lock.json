@@ -1,20 +1,20 @@
 {
   "version": 1,
-  "codeword": "THORNFIELDGATE",
+  "codeword": "BRACKENHOLMDALE",
   "sections": {
     "Start-of-session self-check": [],
     "Your role": [
       {
         "path": ".forge/orchestration.md",
         "heading": "Roles",
-        "sha256": "46b168160a7bb352b4847194d734cd5e4e5a28523e4b582929859ad4de3dae66"
+        "sha256": "d7e9f3c2a969b1199522e78d602ac123740c333edec5f2e92e0e46ea27fa40ee"
       }
     ],
     "Slots and the queue": [
       {
         "path": ".forge/orchestration.md",
         "heading": "Scheduling defaults",
-        "sha256": "1decd1a63e1d1fc30d305a45b4588a7323880edd44303a97e3b3818b94ffaf16"
+        "sha256": "f9abf8c3cf14992e9d525bf6dc3769d12ac1b30b2eeda8dd616a047ef2f2cc8b"
       },
       {
         "path": "docs/agents/triage-labels.md",
@@ -24,7 +24,7 @@
       {
         "path": ".forge/feature-pipeline.md",
         "heading": "Stage 6: ticket it and queue it",
-        "sha256": "d019725bd7cae7416fb899b5a0455c95d5b797aec467270dc9c8a852e01b7fd6"
+        "sha256": "d631b3bf6198ad176412e14b140cff6798bba07b59677c1d0fe27e25df367eba"
       }
     ],
     "The label state machine": [
@@ -73,12 +73,12 @@
       {
         "path": ".forge/orchestration.md",
         "heading": "Capability tiers",
-        "sha256": "3e631fb704e439dfefcc2b208455e3eac04aefd2283e0c7031989a246dffe52c"
+        "sha256": "59c45863ed4ec58054bca0b9b5af4ef9d7c0368ead6bf4d00be54d75f0dfb7a9"
       },
       {
         "path": ".forge/orchestration.md",
         "heading": "Tier gate",
-        "sha256": "c43efe3615209251b5516b82608a43f65910f7ad13deef35b6380893c20d5172"
+        "sha256": "7bb5dad589ab912370c2e3795ccf295148fa2b221d68583e976b6dc2feef260f"
       },
       {
         "path": ".forge/model-tiers.md",
@@ -93,7 +93,7 @@
       {
         "path": ".forge/post-merge-review.md",
         "heading": "Who runs it",
-        "sha256": "0efd8a3f14a3023df0a9c3b3c4e5d13872c6740a84d4c940c9e4b7adcfa30944"
+        "sha256": "50800d1c92273996247b2860a78efc71d856807b35eee7de7e50134f1e9f8c0b"
       }
     ],
     "Starting a thread": [],
@@ -104,17 +104,17 @@
       {
         "path": ".forge/process-and-evidence.md",
         "heading": "What needs the owner's approval before a merge (Never)",
-        "sha256": "2aa8340864001f1445e1e1d0dfb6cd49db20f59a40991d5e2d752188fbb1f16e"
+        "sha256": "f81c7741ad873305536951873781a051a5fc142966cf54f96d9a5d4cbf85a38f"
       },
       {
         "path": ".forge/process-and-evidence.md",
         "heading": "Evidence: where each record lives (Default)",
-        "sha256": "68deadebebc3507d41fb20083c2ce77c0110f23cf760749958768f1edc5e24b5"
+        "sha256": "41c09128cf7b51aa01a3ff92feee17e93f5b5ccc655cdbe460e1d4e2342b4020"
       },
       {
         "path": ".forge/process-and-evidence.md",
         "heading": "Releases",
-        "sha256": "da5eae56219d098f70d8e94b25f20c82391b007827a82855893fa2ff0447725f"
+        "sha256": "6e883a133771800644ca64350b59c6ef98ad95dc3bc594ecb6b33e9d6720f574"
       },
       {
         "path": ".forge/feature-pipeline.md",
@@ -124,12 +124,12 @@
       {
         "path": ".forge/orchestration.md",
         "heading": "Don't manually trigger CI runs",
-        "sha256": "550f0160c3421868fbacf791073cc6f364744c56d5f5dcea1da877b0ae3298b5"
+        "sha256": "771b2199d6c6584acf1698e819969917c9e712d135ca48aca4bf8c4c9c5803c3"
       },
       {
         "path": ".forge/post-merge-review.md",
         "heading": "Findings",
-        "sha256": "add61586d6c7cc4a3ff65a36452b0de062b70a485154a8405dcabf028127b33c"
+        "sha256": "09cd6b1e6b908faf02eb7368babd8fce2dfcdb040d7cc3d6237811cd8fbc99c5"
       }
     ],
     "Project instructions": [],

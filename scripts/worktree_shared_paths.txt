@@ -1,0 +1,5 @@
+# One repository-relative, git-ignored path per line: an installed
+# dependency directory (e.g. a virtualenv or a package-manager cache)
+# worktree_setup.py symlinks into every new worktree instead of
+# reinstalling per ticket. Blank lines and lines starting with # are
+# ignored. Stage 0 fills this in (build-thread-setup.md, "Every ticket").

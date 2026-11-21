@@ -21,6 +21,14 @@ This skill is that something, in three modes, so a design thread, a design-exit 
 
 Cite code by symbol (function, class, route, message type), never by line number: line numbers drift on the next unrelated commit and make a diff's reviewer re-derive what changed.
 
+## Structure and size discipline
+
+The threat model's register sections (§2 to §5 and §7 to §10) are tables: one row per item (asset, actor, entry point, boundary, threat, gap, risk), scanned a row at a time.
+A cell holds a few dense clauses of fact and citation, never an unbroken narrative paragraph, and doesn't repeat a fact an adjacent column already carries.
+A row that doesn't fit this size is usually several items: split it into sibling rows under a shared ID (`T7a`, `T7b`, ...) rather than widening one field.
+A single threat that genuinely carries more controls than a cell holds keeps its row as the summary, plus a `### T7 detail` heading under the table with one bullet per control, each a short clause citing its symbol and guard test.
+No mechanical check measures this; the review gate's Standards axis enforces it, and a guard is added only if cell bloat recurs despite this rule.
+
 ## Per-repo values
 
 Fill these in once per repo; every mode below reads from this table instead of naming a repo's files directly.
@@ -34,6 +42,7 @@ Record a change to this table in `docs/forge-overrides.md`, since this file is f
 | Requirements spec, if any (for `FR-`/`NF-` citations) | `docs/requirements/requirements-specification.md` |
 | Architecture description, if any (trust-boundary peers, deployment shape) | none yet |
 | "Last reconciled" line format | `**Last reconciled against \`main\` @ \`<sha>\`** (<date>).` near the top, directly under the scope and method section |
+| "Delta folded" line format | `**Delta folded for <feature> @ \`<sha>\`** (<date>, <PR>) — <one-line scope note>.` appended next to the "Last reconciled" line, one per feature fold still newer than the last full reconcile; dropped once the next full reconcile supersedes it |
 | Known-gaps table columns (§8) | `Gap | Severity | Threat | Tracking` |
 | Accepted-risks table columns (§10) | `Risk | Threat | Why accepted | Owner's recorded words | Tracking` |
 | Severity vocabulary | Must (reachable today by an authenticated user or an on-path attacker), Should (degrades cleanly or needs a precondition), Could (defensive depth) |
@@ -52,7 +61,7 @@ Follow the skeleton's section shape, which isn't repo-specific; only its content
    Regenerate this from the code's own declarations (route decorators, a command registry, a message-handler table, a public-paths allowlist), not by hand-enumerating from memory, so it's mechanically re-derivable at the next reconcile.
 5. **Trust boundaries and data flows**: where a security decision actually changes (process boundary, network boundary, privilege boundary), and the paths data takes across those boundaries.
 6. **Security assumptions**: what's assumed true about a boundary peer (for example "the identity provider is deployed and verifies tokens") so the threat register can build on it instead of re-litigating it per threat.
-7. **STRIDE by boundary (threat register)**: one entry per threat, grouped by trust boundary and STRIDE category, each naming the entry points and assets it touches, the control or controls in place (cited by symbol), and the residual risk.
+7. **STRIDE by boundary (threat register)**: one entry per threat, grouped by trust boundary and STRIDE category, each naming the entry points and assets it touches, the control or controls in place (cited by symbol), and the residual risk — each field held to "Structure and size discipline" above.
 8. **Known gaps**: a table (the column shape above) of every gap a control doesn't close, each with a tracking issue, never a TODO with no issue.
 9. **Residual risk summary**: one row per major threat, its current residual risk level, and the state of its controls.
 10. **Accepted risks**: every risk the owner has decided to accept rather than close, with the owner's recorded words (SDLC-107); a risk nobody has decided on belongs in §8, not here.
@@ -76,6 +85,7 @@ Write the security content for one of two callers, a feature-pipeline design ste
   If none apply, write "Security: none" with a one-line reason: a true negative is still a recorded judgement, not silence.
 
 In every case, name the actual symbols the new code will touch or add (not yet-unwritten placeholder names), and don't invent a control the design doesn't actually call for just to fill the section.
+Write proposed rows to "Structure and size discipline" above, split before they are handed off to be folded in.
 
 ### Folding deltas at the terminal-slice merge
 
@@ -86,7 +96,8 @@ When a feature's terminal slice merges and every other terminal slice is already
    Each slice wrote its own at stage 5, and a non-terminal slice's PR never touched the live file with it, so every one of them is still unfolded until this point.
 2. Where two slices' deltas touch the same threat-register entry or the same known-gap row, merge them into one entry reflecting the feature's final state; never append both as separate rows for the same threat.
 3. Insert the merged rows into the threat model file's register and known-gaps table, and land any runbook a delta named.
-4. Update the "Last reconciled" line to the merge commit just produced.
+4. Record that this delta was folded, without touching the "Last reconciled" line: add (or update) a "Delta folded" line next to it, in the per-repo values table's format (feature name, the merge commit just produced, today's date, the follow-up PR's reference, and a one-line note on what this fold's scope covers).
+   "Last reconciled" records only a full reconcile pass (mode: reconcile, or bootstrap); a delta fold is a narrower claim and must say so, not overwrite it.
 5. Land this in the same small follow-up PR as the status-line and checklist-tick bookkeeping `implement-with-merge` step 3 already makes at this point, never a direct write to `main` and never delta mode's design-exit path (which always lands inside its own ticket's PR, never at a feature-pipeline merge point).
 
 ## Mode: reconcile
@@ -97,11 +108,12 @@ The reviewer that found the gap never fixes it itself; this mode is where the fi
 
 1. Re-walk every section against the code on the repo's current default branch, not against what the document already says.
    Regenerate the entry-point and attack-surface table mechanically from the code's own declarations, the same way bootstrap's step 4 does.
+   Tighten or split any row that has drifted into a narrative paragraph, per "Structure and size discipline" above; this is also how a threat model already written in narrative rows converges on this shape, keeping its own column shape.
 2. Re-check every row in the known-gaps table against its tracking issue's current state.
    Delete rows whose issue is closed and whose underlying gap is actually fixed (verify the fix landed; don't take the issue's closed status alone as proof), and add rows for anything newly found during this pass that isn't already tracked.
 3. Re-check that every threat-register entry's control citations still point at real, current symbols; update or remove a citation that moved or no longer exists.
 4. Re-check every accepted risk in §10 still describes the system as built; a risk whose shape changed needs the owner's decision again, so move it back to §8 with a `needs-decision` ticket.
-5. Update the "Last reconciled" line to the commit this reconcile was run against.
+5. Update the "Last reconciled" line to the commit this reconcile was run against, and remove every "Delta folded" line it now supersedes.
 6. Land it as its own ticketed docs PR (`Requirements: none (internal)`; cite whichever ticket asked for the reconcile, the release ticket or the post-merge-filed gap ticket) and get it merged.
    This mode never edits code, only the security docs it's reconciling; a code weakness found along the way is a separate finding for whoever's running the review this reconcile serves, not something this mode fixes itself.
 

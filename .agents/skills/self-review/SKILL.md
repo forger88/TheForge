@@ -78,6 +78,13 @@ Each pattern here is a defect the post-merge review found again after earlier ru
   A predictable path there lets another account pre-create it, hold its lock, or plant a symlink that a privileged write follows.
 - **A class claimed closed is enumerated from its source.** When the diff says it closes a whole class (every enum value, every route a router serves, every key a parser accepts), list the members from the authority that defines them (the code that handles the cases, or the list, schema or specification that defines them) on the PR's `Evidence:` line, not from the finding's examples, and test each one.
   A fix built from the finding's examples alone declares the class closed and misses the member nobody named.
+- **A completeness claim over a sweep or review round is a named list, not a count.** When a diff's `Evidence:` line, or any other claim in the PR, says a sweep or review round checked "all N" or "every X" of something with no single authoritative list to enumerate from (a window of past PRs, a batch of prior review rounds, a set of files a search turned up) — distinct from the "class claimed closed" pattern above, which applies when the class *does* have such a source — check that the claim still names each member actually checked, not only a total, and that its stated scope visibly matches the class it claims to cover.
+  A claim built from a count alone lets the sweep's own scope silently drift from the class it's meant to cover; without the per-item list recorded, the next review has to re-derive the sweep from scratch to find what was missed, and risks repeating the same claim without having actually closed the gap.
+- **The `Review:` line names a clean-context sub-agent for Standards and Spec, never the builder itself.** Before writing the `Review:` field, check each of the Standards and Spec entries names an independent, clean-context sub-agent actually spawned for this review — not `self`, `builder's own`, or any performer that is also this PR's author or carries this thread's own history — unless the PR genuinely qualifies for the light gate (`.forge/review-gate.md`, "Full gate and light gate") and says so in those words.
+  A mechanical check can confirm the `Review:` line's shape, but not whether the sub-agents it names actually ran independently; that is the judgement call this step exists to make before the PR opens, not after a post-merge review finds it.
+  `scripts/check_review_gate.py` backs this up mechanically for the Standards/Spec performer field, but it only checks what the line says, not that the independent review actually happened.
+- **A new or widened guard fires on every violation shape it claims to cover, not just the one its fix targeted.** For a diff that adds a guard or widens what an existing one catches, list each distinct way the guarded invariant can be violated, construct each one, and show the guard fires on it — not only the shape the original finding demonstrated. Record each shape checked on the PR's `Evidence:` line, the same as the "class claimed closed" pattern above.
+  A guard shown to catch one shape and silently miss a sibling shape (a rate limit that checks requests per account but not per IP; a schema check that rejects an unexpected extra field but not a missing required one; an idempotency check that catches a key reused within the same request but not one replayed after a retry) is the same gap as a guard test that can't fail, just one violation-shape narrower — distinct from the "class claimed closed" pattern above, which enumerates a fix's domain members rather than a guard's own violation shapes.
 
 ## Concurrency and lifecycle checklist (triggered)
 
@@ -93,6 +100,17 @@ Run it, in addition to the nine parts above, whenever the diff touches connectio
 5. **Ordering under concurrency:** two requests interleaving at each `await` the diff adds.
 6. **Operation state across an identity switch:** for each such await, what happens if the user, account, workspace or other identity the operation started in changes while it's pending?
    The pending step must be cancelled, or its result dropped, never applied to the new context.
+
+## Guard-removal checklist (triggered)
+
+Run this whenever the diff adds or changes a guard made of several rules sharing one test file: a skip list, an exemption list, a threshold, or a fallback path.
+A guard test crediting itself from one mutation of one rule, while its test file claims to cover several, can pass the existing guard-removal rule to the letter while most of the rules the file claims to cover were never checked — for example, a rate limiter's test file claims to cover a per-user threshold, a per-IP threshold and a burst-window rule, but only the per-user threshold was ever neutered and shown red.
+
+1. For every new or changed branch or rule the diff adds to the guard, neuter that rule alone, drawn from the guard's own code rather than guessed at from the test file's intent.
+2. Show its test go red, then restore the rule.
+3. Record each rule checked, and its red result, on the PR's `Evidence:` line.
+
+This is the same discipline `.agents/skills/tdd/SKILL.md`'s "Guard-removal verification" already states; this checklist entry only makes sure self-review actually runs it, rather than restating the procedure here.
 
 ## Security delta checklist (triggered)
 

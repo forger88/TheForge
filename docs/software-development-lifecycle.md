@@ -544,8 +544,11 @@ and lifecycle hazards, and whether new comments earn their place; the
 list includes but is not limited to these. The self-review looks for
 patterns of common error, and its set of patterns grows over time as the
 post-merge review notices repeat offenders. No
-reviewer beyond the builder's own sub-agents is required before merge;
-the post-merge review (section 7) is the independent second review.
+reviewer beyond the builder's own sub-agents is required before merge,
+and a sub-agent a parent thread starts on the builder's behalf, when the
+builder has no sub-agent tool of its own, counts as one of the builder's
+own sub-agents for this purpose, not a review by another thread; the
+post-merge review (section 7) is the independent second review.
 
 - **SDLC-040**: Each ticket is built on its own branch, cut fresh from
   `main` unless the ticket or the owner specifies otherwise, and named
@@ -571,7 +574,10 @@ the post-merge review (section 7) is the independent second review.
   condition, including one that appears to meet some conditions of each
   gate or is uncertain, gets the full gate. No full-gate change merges on
   an inline read of the diff in place of the directed review skills. No
-  review by another thread is required before merge.
+  review by another thread is required before merge; a sub-agent started
+  on the builder's behalf by the thread that started it, when the
+  builder has no sub-agent tool of its own, stands in for the builder's
+  own sub-agent and is not a review by another thread.
 - **SDLC-043**: A build thread self-merges its PR once the merge gate is
   clear and any owner approval the change needs (SDLC-117) is recorded
   (SDLC-102), except where the owner has said to hold it. A recorded

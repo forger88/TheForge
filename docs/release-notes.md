@@ -9,6 +9,80 @@ skill (Enhancements, Bug fixes, Known issues and For integrators, with
 notes as its tag message, per `CLAUDE.md`'s "Tagging a release of this
 repository."
 
+## v0.3.0 (2026-11-21)
+
+A guard-hardening release: the review gate now always runs the full gate on a requirements-spec edit and fetches its pre-merge check in one step, self-review gained two more repeat-offender checks and a names-every-rule guard-removal procedure, a threat-model-staleness bug in security-docs' delta-fold mode is fixed, a Windows skills-lock hashing bug and two open CVEs in the doc-build toolchain are fixed, post-merge review now routes a genuine open design question to the owner instead of parking it directly, and `forge-sync` now reports a sync back to the owner in plain language. A large pithiness pass (#375) also tightened the wording of the core `.forge/` rule files, the coordinator core and most TheForge-written skills.
+
+### Enhancements
+
+#### Review and merge gate
+
+- `self-review` now also checks that a PR's **`Review:` line names an independent, clean-context sub-agent** for Standards and Spec (never the builder itself, unless the PR genuinely qualifies for the light gate), and that a new or widened guard **fires on every distinct violation shape** it claims to cover, not just the one shape its originating fix targeted. (#713)
+- A **completeness claim** in a sweep or review round ("all N", "every X") must now name each member actually checked, not just a total, with its stated scope visibly matching the class it claims to cover. (#703)
+- **The pre-merge review-gate check now runs against what GitHub actually holds**, not a hand-assembled copy: one call to the new `check_review_gate_premerge.sh` fetches the PR's body and changed-file list and checks them with `main`'s own copy of the checker, then prints the head sha to pin the merge to, so a PR can no longer clear the light gate because a disqualifying file was left off a hand-built list (a few narrower gaps remain; see #765 below). (#735)
+- The synced review-gate text now says explicitly that **a parent thread's sub-agents stand in for the builder's own** and are not "a review by another thread" — they satisfy the merge gate the same way a builder's own clean-context sub-agents would, closing an ambiguity in how the merge gate's sub-agent handoff was described. (#763)
+
+#### Coordinator and orchestration
+
+- `forge-sync` now **closes every sync by reporting it back to the owner** in plain language — what changed, current overrides, time/effort, conflicts, upstream candidates, what needs attention — instead of leaving the PR body as the only record. (#716)
+- The coordinator-core reload proof now reports the **abbreviated `origin/main` sha** instead of the full 40-character hash. (#772)
+- A build thread's slot being **freed is now itself the trigger to refill it**, instead of waiting for the next 30-minute tick — closing a gap where unblocked queue work could sit idle for hours. (#773)
+- A coordinator that can't reach the coordinator core now **spawns a thread to fetch a copy** instead of just stopping, and double-checks it read the whole file before reporting a partial-copy loss. (#805)
+
+#### Security and threat model
+
+- A new project's threat model and the `security-docs` skill now **keep every register row to a few dense clauses** instead of letting a cell become a paragraph, splitting any extra detail into a per-threat list; existing threat models converge on that shape at their next reconcile. (#776)
+
+#### Toolchain and guards
+
+- **Four more shipped guards now have tests that fail if the guard stops working**: `check_pins`, `check_coverage_baseline`, `check_one_sentence_per_line` and `check_branch_name`, matching every other root neutrality guard; three of those new tests that couldn't fail for some of the rules they claimed to cover were fixed before release. (#534)
+- **Guard-removal verification now checks every rule a guard test claims to cover**, not just one mutation of one rule. (#732)
+
+### Bug fixes
+
+#### Toolchain and guards
+
+- `check_skills_lock.py`'s directory hash **could mismatch on a Windows checkout**, because its sort order was case-insensitive there. (#682)
+- Two **open CVEs were present in the doc-build toolchain's pinned dependencies** (Pillow decoder/loader heap overflows; a Brotli decoder out-of-bounds write). (#708)
+
+#### Security and threat model
+
+- In `security-docs`' delta mode, a terminal-slice fold **could overwrite the threat model's "Last reconciled" line**, making a pre-release staleness check believe the whole document was current when only one feature's rows had actually been reconciled. (#711)
+
+#### Review and merge gate
+
+- A requirements-spec edit **could be merged on the light gate** instead of the full gate it always needs. (#712)
+- Post-merge review **filed a genuine open design question directly as a deferred architecture finding** instead of flagging it to the owner as a `needs-decision` ticket. (#375)
+
+### Known issues
+
+- The coordinator-core reload proof's quoted `origin/main` sha is self-reported, not independently verified. (#668)
+- A coordinator's reload proof can still be satisfied by a plain grep for the mid-file check word's fixed label; the owner accepted this as residual risk. (ADR-0013)
+- A harness that does not follow `@`-imports recursively may load only `.forge/entrypoint.md` and miss the rule files it imports. (#86)
+- A project spread over several repositories has no single point of truth for policy, skills and instructions. (#1)
+- Mermaid rendering still needs a Chromium installed on the machine. (#468)
+- The root copies of shipped guard scripts, including the three `check-merge-text.sh` runs at every merge, are tested only through their `template/scripts/` sources, not at root; the owner accepted this as residual risk. (#606)
+- The shipped SDLC-wording-hold check never re-checks a statement already classed `current` before a sync against what the sync actually wrote, so a sync that silently rewrites such a statement's wording passes the hold check unnoticed. (#729)
+- The review gate's light-gate path check only looks at a changed file's new path, so renaming a disqualifying file (the requirements spec, a `.forge/` file, a skill, `CLAUDE.md`, the threat model) to a non-disqualified path can pass as light-gate eligible. (#756)
+- `check_review_gate_premerge.sh` doesn't yet check its fetched file list against the PR's own `changed_files` count, so a GitHub-side truncation (one that still leaves some files, just not all of them) can still pass; it fails open, not closed, if the fetched checker itself comes back empty (an empty `.py` file exits `0`, an empty file list is already caught — `is_light_gate_eligible` fails closed on it); and only the checker it fetches is pinned to `main`, not the wrapper script itself, which runs from the merger's own checkout. (#765)
+- A few shipped skills and rule files drifted in meaning during the pithiness pass and are not yet corrected. (#757)
+- The example of a badly named branch in the shipped branch-naming rule may not be generic enough for shipped content; the owner accepted this as a known issue. (#724)
+
+### For integrators
+
+**Breaking changes:**
+
+- `template/scripts/check_review_gate.py` now fails any PR that claims the light gate for an edit to `docs/requirements/requirements-specification.md` — including a status-only edit. After syncing, any open PR that currently does this fails the check immediately; convert it to the full gate before relying on the check. (#712)
+
+- After syncing, the pinned `pillow`/`brotli` versions in `docs/tools/requirements.txt` (and its `template/` mirror) move to `13.0.0`/`1.2.1`, closing two open CVEs; compatibility with this toolchain's only consumer, `weasyprint`, was verified end to end. No other action needed. (#708)
+- After syncing, a guard-removal-capable test's `Evidence:` line must now name each rule the test claims to cover, with where the rule list came from, not just one red-then-green pair. (#732)
+- After syncing, use `template/scripts/check_review_gate_premerge.sh [PR_NUMBER]` immediately before merging instead of assembling the PR body and changed-file list by hand; `implement-with-merge` step 3 now names it. It doesn't yet detect a GitHub-side truncated file list, fails open rather than closed if the fetched checker itself comes back empty, and only the checker — not the wrapper script you run — is pinned to `main` (#765); keep checking the PR's changed-file count by hand, and run the wrapper from a trusted checkout, until that's fixed. (#735)
+- After syncing, `docs/software-development-lifecycle.md`'s SDLC-042 bullet and the adjacent §5 prose carry reworded text making explicit that a parent thread's sub-agents, started on a builder's behalf, stand in for the builder's own and are not "a review by another thread"; `forge-sync` holds the sync PR at this point until the project's own owner approves the new wording (SDLC-117), but expect that hold — it is not a sync failure. (#763)
+- After syncing, re-paste the text between the markers in `docs/agents/coordinator-core-snippet.md` into the harness's project-instruction field again — the coordinator-core reload proof now reports the abbreviated `origin/main` sha instead of the full 40-character hash. (#772)
+- After syncing, re-paste the updated coordinator-core snippet from `docs/agents/coordinator-core-snippet.md` into the harness's project instructions again (`check_coordinator_core.py drift` fails until you do) — it now tells a coordinator that can't reach the coordinator core to spawn a thread to fetch a copy, and to double-check it read the whole file before reporting a partial-copy loss. (#805)
+
+Plus 27 internal changes.
+
 ## v0.2.0 (2026-11-15)
 
 A process-hardening release: downstream repository owners get a review gate that no longer lets an axis run silently un-reviewed, a coordinator that can no longer be satisfied by a stale or cached instruction copy, a release-notes process corrected against its own mistakes, PRs generated to the template's own shape, the requirements specification checked against the skill that sets it, a tightened SDLC document, a one-call worktree setup, a more conversational stage 0 with three more seeded principles, and three shipped bugs fixed (two of them documented as known issues at v0.1.0); several accepted risks were also re-homed, re-verified or newly classified.

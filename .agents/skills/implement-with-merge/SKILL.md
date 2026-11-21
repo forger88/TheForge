@@ -65,7 +65,7 @@ Re-invoke this skill and `/implement` (which itself re-reads `/tdd`) fully for *
 
 1. **Implement, in a dedicated worktree, not the shared checkout.**
    Before any edit, swap the ticket's `queued` label for `in-flight` (`docs/agents/triage-labels.md`, "Queue labels").
-   Then create this ticket's own worktree off a freshly fetched `origin/main` with plain `git`: `git fetch origin main && git worktree add ../<branch-name> -b <branch-name> origin/main`.
+   Then create this ticket's own worktree off a freshly fetched `origin/main` with plain `git`: `git fetch origin main && git worktree add ../<branch-name> -b <branch-name> origin/main` (or the single call `python3 scripts/worktree_setup.py <branch-name>`, which does the same fetch-and-add idempotently and also symlinks the project's shared dependency directories, per `scripts/worktree_shared_paths.txt`).
    Don't use a harness's session-level worktree tools for this; they are a different mechanism and may stop on a permission prompt.
    Run every remaining step (implementation, tests, review, PR, merge) from inside the directory `git worktree add` created, and remove it the same way (`git worktree remove`, step 3).
    This mechanically enforces "one branch per issue, taken fresh off main" (`.forge/tickets-and-branches.md`): that rule says which commit a branch starts from, and this says where the agent's working directory lives while it builds it.

@@ -433,12 +433,33 @@ class ConstraintGuards(unittest.TestCase):
         core = _repo_text(".forge/coordinator-core.md")
         for label, text in (("snippet", snippet), ("core", core)):
             self.assertIn("in full yourself, first line to last, with your own file-read tool, in this session", text, label)
-            self.assertIn("report nothing but the fetched commit sha and the copy's timestamp", text, label)
+            self.assertIn("report nothing but the fetched short commit sha and the copy's timestamp", text, label)
             self.assertIn("Mid-file check word:", text, label)
             self.assertIn("Proof: codeword XXXX, mid-file check YYYY, origin/main sha Z", text, label)
             self.assertIn("a word seen in a partial or tail read is not proof", text, label)
             self.assertIn("tell the owner plainly that the earlier proof was not valid", text, label)
             self.assertIn("posted, or were about to post, the proof without that read", text, label)
+
+    def test_unreachable_core_spawns_a_fetch_thread_and_partial_copy_is_rechecked(self) -> None:
+        """An unreachable authoritative copy has one defined next action, and a partial-copy
+        report is preceded by a re-read of the whole file from disk; removing either
+        sentence from any copy of the snippet or the core's self-check fails here."""
+        fetch = "immediately spawn a thread to attempt to fetch a copy"
+        reread = "for a partial copy error, first double check that you actually read the whole of the file from disk"
+        paths = [".forge/coordinator-core.md", "docs/agents/coordinator-core-snippet.md"]
+        texts = {path: _repo_text(path) for path in paths}
+        if IN_RAW_TEMPLATE_TREE:  # the donated root copies, beside the template's own
+            for path in paths:
+                root_copy = REPO.parent / path
+                if root_copy.is_file():
+                    texts["root " + path] = " ".join(root_copy.read_text(encoding="utf-8").split())
+        for path, text in texts.items():
+            self.assertIn(fetch, text, path)
+            self.assertIn("do not carry on without", text, path)
+            if "snippet" in path:
+                self.assertIn("However, " + reread, text, path)
+            else:
+                self.assertGreaterEqual(text.count("double check that you actually read the whole of the file from disk"), 2, path)
 
     def test_fetch_always_runs_never_a_cached_copy(self) -> None:
         """TheForge's coordinator-core ADR, freshness constraint: a copy already present,

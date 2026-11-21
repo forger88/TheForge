@@ -9,14 +9,12 @@ disable-model-invocation: true
 **This is report-only: a run changes no labels, issues, comments or files in the repo.
 It reports gaps to the owner and the coordinator, who decide what to queue (SDLC-023), including check 5's own gap: a ticket that's neither handed out nor queued.**
 
-Run the sweep in a mechanical-tier sub-agent, whatever tier the calling thread runs on.
-The parent thread reads only the returned report.
+Run the sweep in a mechanical-tier sub-agent, whatever tier the calling thread runs on; the parent thread reads only the returned report.
 This skill is the authorisation for spawning that sub-agent (SDLC-010).
 
-This repo's pipeline (`.forge/feature-pipeline.md`, `post-merge-review` and the triage labels) relies on every stage writing a record the next one points at: a triage comment, a run log row, a checklist tick, a label.
-Each of those is a small, separate action, so one can be skipped without anything downstream failing loudly.
-A stage 8 Strong finding is called out in a comment but never turned into a ticket; a post-merge review Must survives in an archive comment with no sub-issue; a feature's checklist item is ticked by hand ahead of the state it describes; an issue sits with no label at all.
-This skill is the sweep that catches that class of gap; it never fixes anything itself.
+Every stage of this repo's pipeline (`.forge/feature-pipeline.md`, `post-merge-review` and the triage labels) writes a record the next one points at (a triage comment, a run log row, a checklist tick, a label), and each is a small, separate action that can be skipped without anything downstream failing loudly.
+A stage 8 Strong finding is called out but never ticketed; a post-merge review Must survives in an archive comment with no sub-issue; a checklist item is ticked by hand ahead of the state it describes; an issue sits with no label at all.
+This sweep catches that class of gap; it never fixes anything itself.
 
 ## Cadence
 
@@ -27,8 +25,8 @@ The Main Health thread also runs it on a standing schedule: see `.agents/skills/
 
 Write the report to `queue-sweep/<YYYY-MM-DD>-<shortsha>.md` in the working folder ({{ working_folder }}), using the date and `origin/main`'s short SHA at run time.
 Post it in the running thread, and send it to the coordinator where the harness provides a way to message the coordinator.
-**When run pre-release**, also post the report as a comment on the release ticket (SDLC-101): that's the durable record of the sweep outcome and the owner's per-gap decisions, not the working-folder copy.
-**A standing run** (the Main Health thread's own schedule) stays in the working folder only: the daily standing sweep is not a scheduled assurance pass for SDLC-103 purposes, so it gets no hosting-platform record.
+**When run pre-release**, also post the report as a comment on the release ticket (SDLC-101): that comment, not the working-folder copy, is the durable record of the sweep outcome and the owner's per-gap decisions.
+**A standing run** (the Main Health thread's own schedule) stays in the working folder only: it is not a scheduled assurance pass for SDLC-103, so it gets no hosting-platform record.
 
 1. A header line: the UTC time and the owner's local time ({{ owner_timezone }}), the `origin/main` SHA this run read, and "nothing was changed."
 2. One section per check below, **in order**, as a table: `#`, title, labels, gap, evidence (the query row or a comment link).
@@ -39,15 +37,15 @@ Post it in the running thread, and send it to the coordinator where the harness 
 
 ## Query conventions
 
-Queries are `gh api` REST calls, written in full with `per_page=100` and `--paginate` so a result isn't silently truncated to the platform's default page size.
-Where a hosting-platform MCP tool is the only working access (some sandboxes run `gh` with no working token), use its equivalent listing or read call; the query shape stays the same.
+Queries are `gh api` REST calls, written in full with `per_page=100` and `--paginate` so no result is silently truncated to the platform's default page size.
+Where only a hosting-platform MCP tool works (some sandboxes run `gh` with no working token), use its equivalent listing or read call; the query shape stays the same.
 A REST issue listing includes pull requests; every query below either filters `.pull_request` directly or says to drop rows carrying it.
 `--paginate` applies `--jq` to each page separately, so a filter that reduces the whole result (`last`, `length`, `first`) gives one answer per page: stream elements with `.[] | ...` and reduce outside jq instead.
 Where a proxy or token refuses the next-page links `--paginate` follows, page explicitly with `&page=N` on the `repos/...` path until a page comes back with fewer than 100 entries.
 
 **A semantic search tool is not a literal one.**
-An MCP issue-search tool may rank by meaning rather than match exact phrases, returning false positives for an exact `in:title` phrase or nothing for an exact `in:body` phrase that is provably present.
-Any check below that uses an exact-phrase search needs its result cross-checked when it comes from such a tool: on a zero result or any doubt, fall back to paginating the plain issue listing and filtering titles and bodies for the literal substring in a script.
+An MCP issue-search tool may rank by meaning, returning false positives for an exact `in:title` phrase or nothing for an `in:body` phrase that is provably present.
+Cross-check any exact-phrase result from such a tool: on a zero result or any doubt, paginate the plain issue listing and filter titles and bodies for the literal substring in a script.
 
 The shell variables below stand for this repo's values:
 
@@ -62,8 +60,8 @@ LFS={{ local_full_suite_evidence_tracker or "<local_full_suite_evidence_tracker 
 
 "Ready label" means `ready-for-build`, `ready-for-structure` or `ready-for-human`. `ready-for-feature-design` is a state role, but never a queueable ready label: see check 5.
 
-The operational safety rules are the ones `post-merge-review` already states (`.agents/skills/post-merge-review/SKILL.md`, "Operational safety rules").
-This skill makes only read-only API calls, so most don't apply, but the no-paid-calls-without-an-explicit-ask rule still does if a check is ever dispatched to a sub-agent.
+The operational safety rules are `post-merge-review`'s (`.agents/skills/post-merge-review/SKILL.md`, "Operational safety rules").
+This skill makes only read-only API calls, so most don't apply, but the no-paid-calls-without-an-explicit-ask rule still does if a check is dispatched to a sub-agent.
 
 ## The fourteen checks
 
@@ -88,9 +86,9 @@ Report as gaps:
 - (a) a closed pass ticket whose feature has no matching triage comment;
 - (b) a Strong bullet with no issue reference;
 - (c) a referenced issue that is open with no ready label (`gh api $R/issues/<N> --jq '[.labels[].name]'`);
-- (d) any other issue the triage comment references that carries `needs-decision` (a Strong bullet's own referenced issue is (e) below, never this clause), that is open, is not labelled `hanging`, `deferred-accepted-risk`, `future` or `deferred-arch-finding`, and is not among the feature's sub-issues (`gh api --paginate "$R/issues/<feature>/sub_issues?per_page=100"`): the pass must file these as tracker sub-issues (`.forge/feature-pipeline.md`, stage 8).
-  A closed issue is fine; a parked one is fine only once a decision comment from the owner is on it (`.forge/feature-pipeline.md`, "A ticket is resolved when") — check with `gh api --paginate "$R/issues/<n>/comments?per_page=100" --jq '.[] | select(.author_association == "OWNER")'`, and treat no match as a gap: a ticket a thread parked and detached on its own, with no owner decision comment, is still a gap.
-- (e) a Strong bullet's referenced issue that is open and labelled `hanging`, `deferred-accepted-risk`, `future` or `deferred-arch-finding`: a Strong finding is fixed or escalated, never parked (owner decision, 2026-11-02), so this is a gap whatever decision comment is on it — (d)'s parking exemption, and its decision-comment check, apply only to a `needs-decision` ticket, never to a Strong finding's own issue.
+- (d) any other issue the triage comment references that carries `needs-decision` (a Strong bullet's own issue is (e), never this clause), is open, is not labelled `hanging`, `deferred-accepted-risk`, `future` or `deferred-arch-finding`, and is not among the feature's sub-issues (`gh api --paginate "$R/issues/<feature>/sub_issues?per_page=100"`): the pass must file these as tracker sub-issues (`.forge/feature-pipeline.md`, stage 8).
+  A closed issue is fine; a parked one is fine only once the owner's decision comment is on it (`.forge/feature-pipeline.md`, "A ticket is resolved when"): check with `gh api --paginate "$R/issues/<n>/comments?per_page=100" --jq '.[] | select(.author_association == "OWNER")'`, and treat no match as a gap, including a ticket a thread parked and detached on its own.
+- (e) a Strong bullet's referenced issue that is open and labelled `hanging`, `deferred-accepted-risk`, `future` or `deferred-arch-finding`: a Strong finding is fixed or escalated, never parked (owner decision, 2026-11-02), so this is a gap whatever decision comment is on it; (d)'s parking exemption and decision-comment check apply only to a `needs-decision` ticket, never to a Strong finding's own issue.
 
 A referenced issue that is closed is fine: it was actioned.
 
@@ -98,10 +96,10 @@ A referenced issue that is closed is fine: it was actioned.
 
 Read the tracker's body: `gh api $R/issues/$PMR --jq .body`.
 Parse the table under its `## Run log` heading by splitting each row on `|`.
-Take the column positions from that table's own header row at run time (don't hardcode an index; the generated tracker starts with `Run | Window (merged) | PRs checked | Must | Should | Sub-issues | Archive`, but re-read the header each run), specifically Must, Should, Sub-issues and the Archive link.
+Take the Must, Should, Sub-issues and Archive-link column positions from that table's own header row each run rather than hardcoding an index (the generated tracker starts with `Run | Window (merged) | PRs checked | Must | Should | Sub-issues | Archive`).
 
 Limit the rows to runs dated on or after the last release tag's date (`git log -1 --format=%cs $(git tag --sort=-v:refname | head -1)`).
-When this check runs as the first step of a release, use every row since the tag before that one instead, so a run that already happened before the prior tag isn't re-flagged as new.
+When this check runs as the first step of a release, use every row since the tag before that one instead, so a run from before the prior tag isn't re-flagged as new.
 With no tags yet, use every row.
 
 For each row with Must + Should > 0:
@@ -109,7 +107,7 @@ For each row with Must + Should > 0:
 - Let `refs` be the distinct issue numbers mentioned in the Sub-issues column.
 - The row is a gap if `refs` is empty, if `|refs| < Must` (not enough tickets for the Musts, which each need their own), or if `Should > 0` while `|refs| <= Must` (no separate Should bundle was ever filed; `post-merge-review` files Musts and Should bundles as separate tickets).
 - For each issue in `refs`, it's a further gap if it is open with none of a ready label, `deferred-arch-finding`, or `needs-decision` (an out-of-scope or worth-exploring finding raised to the owner).
-- For a flagged row, open its archive comment (`gh api $R/issues/comments/<id>`, from the row's Archive link) and quote the Must and Should headings it names as evidence, so the owner can see what went unfiled without re-deriving it.
+- For a flagged row, open its archive comment (`gh api $R/issues/comments/<id>`, from the row's Archive link) and quote the Must and Should headings it names as evidence, so the owner sees what went unfiled without re-deriving it.
 
 Also check feature-scoped passes: `gh api -X GET search/issues --paginate -f per_page=100 -f q='repo:{{ repo_owner }}/{{ repo_name }} is:issue is:closed in:title "Post-merge review pass for"'`.
 Apply the same refs test to each one's closing comment.
@@ -129,11 +127,11 @@ For each result:
 
 Report as a gap:
 
-- item 6 ticked but no `Post-merge review pass for <feature>` ticket exists (check both the sub-issues and a repo-wide exact-title search, since `feature-pipeline` job (b) creates and links the ticket in two separate steps that can land out of step);
+- item 6 ticked but no `Post-merge review pass for <feature>` ticket exists (check the sub-issues and a repo-wide exact-title search, since `feature-pipeline` job (b) creates and links the ticket in two steps that can land out of step);
 - item 6 ticked, no `Stage 8 architecture pass for <feature>` ticket exists, and item 9 carries no single-slice-skip annotation;
 - item 7 unticked while every build slice is closed with `state_reason: completed`;
 - item 8 unticked while the post-merge review pass ticket is closed;
-- item 9 unticked while the stage 8 ticket and every Strong-finding and `needs-decision` ticket it filed are all resolved (closed, or a `needs-decision` ticket the owner parked, with an `author_association == "OWNER"` decision comment on it (check (d)'s command) and the ticket detached from the tracker so it no longer appears among the sub-issues);
+- item 9 unticked while the stage 8 ticket and every Strong-finding and `needs-decision` ticket it filed are resolved (closed, or a `needs-decision` ticket the owner parked, with an owner decision comment on it (check (d)'s command) and detached from the tracker so it no longer appears among the sub-issues);
 - every item ticked and every sub-issue closed, but the feature issue itself is still open.
 
 Separately, list open epics sitting at 100%:
@@ -143,8 +141,7 @@ gh api --paginate "$R/issues?labels=epic&state=open&per_page=100" \
   --jq '.[] | select(.pull_request|not) | select(.sub_issues_summary.percent_completed==100) | {number,title}'
 ```
 
-Exclude the standing trackers (`.forge/tickets-and-branches.md`, which names them): `$PMR`, `$IDEAS`, `$HANGING`, `$ARCH`, `$LFS`, and any issue whose title starts `Post-merge review archive`.
-Re-read that file at run time rather than trusting this list to stay current; it's sourced from there, not owned here.
+Exclude the standing trackers `.forge/tickets-and-branches.md` names (`$PMR`, `$IDEAS`, `$HANGING`, `$ARCH`, `$LFS`) and any issue whose title starts `Post-merge review archive`; re-read that file each run rather than trusting this list, since that file owns it.
 
 ### 4. Open issues with no state label
 
@@ -171,14 +168,14 @@ gh api --paginate "$R/issues?labels=ready-for-build&state=open&per_page=100"
 gh api --paginate "$R/issues?labels=ready-for-structure&state=open&per_page=100"
 ```
 
-`ready-for-feature-design` is never part of this ready set: a feature tracker carrying it routes to a one-off stage 3 design thread, never the queue, so it is never flagged here as "not queued" (`docs/agents/triage-labels.md`, "`ready-for-feature-design`"). Instead, list every open `ready-for-feature-design` tracker with no stage 3 design comment yet, with its age, under its own "awaiting stage 3" heading:
+`ready-for-feature-design` is never part of this ready set: a feature tracker carrying it routes to a one-off stage 3 design thread, not the queue, so it is never flagged as "not queued" (`docs/agents/triage-labels.md`, "`ready-for-feature-design`"). Instead, list every open `ready-for-feature-design` tracker with no stage 3 design comment yet, with its age, under its own "awaiting stage 3" heading:
 
 ```
 gh api --paginate "$R/issues?labels=ready-for-feature-design&state=open&per_page=100" \
   --jq '.[] | select(.pull_request|not) | {number, title, created_at}'
 ```
 
-For each result, check whether a stage 3 design comment already exists (a comment matching stage 3's own shape in `.forge/feature-pipeline.md` — facts verified against `origin/main`, the architecture, the decisions, the security section); a tracker with one is a labelling gap (stage 3 has started but didn't remove the label), reported separately from the "awaiting stage 3" list. A tracker genuinely awaiting stage 3 is not itself a gap; this is a listing, the same shape as check 9's `needs-decision`/`needs-grilling` rows, so a tracker can't sit unnoticed between stages 2 and 3.
+A tracker that already has a stage 3 design comment (one matching stage 3's shape in `.forge/feature-pipeline.md`: facts verified against `origin/main`, the architecture, the decisions, the security section) is a labelling gap, reported separately from the "awaiting stage 3" list: stage 3 has started but didn't remove the label. A tracker genuinely awaiting stage 3 is not a gap; like check 9's `needs-decision`/`needs-grilling` rows, this listing keeps it from sitting unnoticed between stages 2 and 3.
 
 Drop:
 
@@ -194,14 +191,13 @@ A remaining ticket counts as handed out if any of these holds:
 
 "In the coordinator's queue" means the ticket carries the `queued` label, or its number appears in the newest coordinator message in the project chat that lists queued tickets (read with the harness's chat-reading tool, newest first, until that message is found).
 
-Report the tickets that are neither handed out nor queued (SDLC-023): a gap for the owner and the coordinator to decide, the same as every other check in this skill.
-List it under "Suggested actions for the coordinator" as "queue now", since the coordinator's default-queue rule ("The label state machine") already says a ready ticket like this one should be queued without being asked, unless the ticket itself is `needs-decision`, `hanging`, `deferred-accepted-risk`, `future`, `deferred-arch-finding`, carries an open `Blocked by:`, or the owner is on record holding it, in which case say so instead.
+Report the tickets that are neither handed out nor queued (SDLC-023) as gaps for the owner and the coordinator, like every other check here.
+List each under "Suggested actions for the coordinator" as "queue now", since the coordinator's default-queue rule ("The label state machine") already says a ready ticket like this one should be queued without being asked; when the ticket is `needs-decision`, `hanging`, `deferred-accepted-risk`, `future` or `deferred-arch-finding`, carries an open `Blocked by:`, or the owner is on record holding it, say so instead.
 
-Also list the open review-pass tickets that lack `main-health`: a title starting `Post-merge review pass`, a title naming full-suite or CI-drift work, or a `Route: Main Health` line in the body, with no `main-health` label.
-Expected to be empty.
-A hit is a labelling gap, fixed by adding `main-health` (`docs/agents/triage-labels.md`, "`main-health`").
+Also list open review-pass tickets with no `main-health` label: a title starting `Post-merge review pass`, a title naming full-suite or CI-drift work, or a `Route: Main Health` line in the body.
+Expected to be empty; a hit is a labelling gap, fixed by adding `main-health` (`docs/agents/triage-labels.md`, "`main-health`").
 
-**If this harness has no thread-listing or chat-reading tools** (part (d) and the chat read both need them), report under "Not checkable this run: queue not fully readable from this harness" instead of treating the residual list as gaps; don't count a ticket as un-queued just because this run couldn't see the queue.
+**If this harness has no thread-listing or chat-reading tools** (part (d) and the chat read both need them), report "Not checkable this run: queue not fully readable from this harness" instead of treating the residual list as gaps; don't count a ticket as un-queued just because this run couldn't see the queue.
 
 ### 6. Hanging-epic children past their revisit date
 
@@ -215,16 +211,16 @@ gh api --paginate "$R/issues/$HANGING/sub_issues?per_page=100" --jq '.[] | selec
 
 Report a membership mismatch either way (a child of the hanging epic with neither `hanging` nor `deferred-accepted-risk`, or either label on an issue that isn't a child of the epic) as its own list.
 
-`docs/agents/triage-labels.md` documents `hanging`'s and `deferred-accepted-risk`'s revisit trigger as the hanging epic's revisit cadence plus any revisit date or condition recorded in the issue itself.
-This skill uses the one-line convention `Revisit: YYYY-MM-DD` (optionally `Revisit by:` or `Revisit on:`) for that per-issue date, and reads it with the pattern `(?im)^\**Revisit(?: by| on)?:?\**\s*(\d{4}-\d{2}-\d{2})`, taking the last match in the body, then in the comments (newest first) if the body has none.
+`docs/agents/triage-labels.md` sets `hanging`'s and `deferred-accepted-risk`'s revisit trigger as the hanging epic's revisit cadence plus any revisit date or condition recorded in the issue itself.
+This skill reads that per-issue date from a one-line `Revisit: YYYY-MM-DD` (or `Revisit by:`/`Revisit on:`), with the pattern `(?im)^\**Revisit(?: by| on)?:?\**\s*(\d{4}-\d{2}-\d{2})`, taking the last match in the body, else in the comments, newest first.
 
 Two result lists:
 
 - **past revisit date**: a `Revisit:` date found, and it is before today (UTC);
 - **no revisit date recorded**: no `Revisit:` line found anywhere; show the issue's free-text trigger if one is obviously present in the body, otherwise just the issue number and title.
-  Don't fall back to the epic's own blanket cadence as if it were a per-issue date: that would mark every child overdue at once and hide which ones are genuinely due.
+  Don't substitute the epic's blanket cadence for a per-issue date: every child would read overdue at once, hiding which are genuinely due.
 
-If `docs/agents/triage-labels.md` ever tightens the revisit trigger to a specific format, this convention follows it.
+If `docs/agents/triage-labels.md` tightens the revisit trigger to a specific format, this `Revisit:` convention follows it.
 
 ### 7. Orchestration rules: coordinator skill vs. project settings
 
@@ -239,7 +235,7 @@ python3 scripts/check_coordinator_core.py shape
 A non-zero exit is a gap: the core is over its size limit, missing its truncation guard, or missing its end marker. Quote the script's own report.
 In TheForge's own repository only, also run TheForge's `lock` check, which compares each section's cited source sections with the root-only lock file; a consuming project has no lock and reports that part under "Not checkable this run". A failing `lock` check is a gap: a cited source section changed, or a citation broke, without the core being re-read and the lock refreshed.
 
-**(b) The live project settings carry the current coordinator-core section.** Run this check only when this repository is the lead (the owner's `Lead repo:` line), or the only member; a non-lead member reports this part under "Not checkable this run: covered by the lead repository's sweep." Write the harness's project instructions as delivered in this running thread's own context verbatim to `settings.txt`, then:
+**(b) The live project settings carry the current coordinator-core section.** Run this part only when this repository is the lead (the owner's `Lead repo:` line) or the only member; a non-lead member reports it under "Not checkable this run: covered by the lead repository's sweep." Write the harness's project instructions, as delivered in this thread's own context, verbatim to `settings.txt`, then:
 
 ```
 python3 scripts/check_coordinator_core.py drift settings.txt
@@ -247,7 +243,7 @@ python3 scripts/check_coordinator_core.py drift settings.txt
 
 A non-zero exit is a gap, quoted from its report: the live text no longer contains the snippet (`docs/agents/coordinator-core-snippet.md`), or it exceeds the host's size limit. Report a member contradiction with no open `needs-decision` ticket for that member and section as a Should.
 
-**(c) Session-start re-read, best effort.** Whether long-running threads have actually been told to re-read the current `CLAUDE.md`, skills and project instructions recently (`.forge/coordinator-core.md`, "Reuse, rotation and resolution") isn't something this check can verify directly; note it as a Could-only observation when a thread's own transcript suggests it hasn't happened in a long time, never as a finding on its own.
+**(c) Session-start re-read, best effort.** This check can't verify whether long-running threads were told to re-read the current `CLAUDE.md`, skills and project instructions recently (`.forge/coordinator-core.md`, "Reuse, rotation and resolution"); when a thread's own transcript suggests it hasn't happened in a long time, note it as a Could-only observation, never a finding on its own.
 
 This check does not run, and is reported under "Not checkable this run" rather than as drift, in either of these cases:
 
@@ -256,8 +252,7 @@ This check does not run, and is reported under "Not checkable this run" rather t
 
 ### 8. Process changes that cite no SDLC statement
 
-Process changes are reviewed against `docs/software-development-lifecycle.md` (`.forge/process-and-evidence.md`, "Process changes follow the lifecycle doc"), and the PR's `Process:` line is how that review is recorded.
-This check finds the ones that skipped it.
+A process change is reviewed against `docs/software-development-lifecycle.md` (`.forge/process-and-evidence.md`, "Process changes follow the lifecycle doc"), and the PR's `Process:` line records that review; this check finds the PRs that skipped it.
 
 ```
 git fetch origin main
@@ -282,21 +277,21 @@ gh api --paginate "$R/issues?labels=needs-decision&state=open&per_page=100" \
   --jq '.[] | select(.pull_request|not) | {number, title, created_at}'
 ```
 
-This isn't a drift check like 1-8; it's a listing, because `needs-decision` (`docs/agents/triage-labels.md`, "`needs-decision`") blocks a ticket regardless of its other labels and has no staleness threshold.
+This is a listing, not a drift check like 1-8: `needs-decision` (`docs/agents/triage-labels.md`, "`needs-decision`") blocks a ticket whatever its other labels, and has no staleness threshold.
 Report every result as its own row (`#`, title, labels, age in whole days since `created_at`, UTC, with the query itself as evidence) under its own "awaiting the owner" heading.
 Feed that same list into progress reports under "anything awaiting the owner" (`.forge/coordinator-core.md`, "Progress reports", item 5).
 An empty result still gets the heading, reading "none".
 
-Run the same query and row shape for `needs-grilling` (`docs/agents/triage-labels.md`, "`needs-grilling`"), excluding any result that also carries `needs-decision` — `needs-decision` and `needs-grilling` can legitimately stack (`docs/agents/triage-labels.md`, "`needs-decision`"), and a ticket carrying both is hard-blocked on the owner, not open for a grilling thread to pick up:
+Run the same query and row shape for `needs-grilling` (`docs/agents/triage-labels.md`, "`needs-grilling`"), excluding a result that also carries `needs-decision`: the two can stack (`docs/agents/triage-labels.md`, "`needs-decision`"), and a ticket carrying both is hard-blocked on the owner, not open for a grilling thread:
 
 ```
 gh api --paginate "$R/issues?labels=needs-grilling&state=open&per_page=100" \
   --jq '.[] | select(.pull_request|not) | select([.labels[].name] | index("needs-decision") | not) | {number, title, created_at}'
 ```
 
-Report it under its own "awaiting a grill" heading, same shape as the `needs-decision` list above — an empty result still gets the heading.
-These tickets are not "awaiting the owner" and don't feed that progress-report item; they're work for a grilling thread, so feed them into progress reports under the queue-left section instead.
-A `needs-grilling` ticket excluded here for also carrying `needs-decision` is not dropped: it already appears in the `needs-decision` listing above, and stays in the "awaiting the owner" group until the owner decides.
+Report it under its own "awaiting a grill" heading, in the same shape; an empty result still gets the heading.
+These tickets are work for a grilling thread, not "awaiting the owner", so feed them into progress reports under the queue-left section instead.
+A ticket excluded here for also carrying `needs-decision` is not dropped: it appears in the `needs-decision` listing and stays "awaiting the owner" until the owner decides.
 
 ### 10. Queue empty only if nothing is queued and no feature epic is open with unowned work
 
@@ -337,9 +332,8 @@ Also report the outcome in one line: "queue empty" only when (a) and (b) are bot
 
 ### 11. Scheduled pass overdue (SDLC-103)
 
-A scheduled pass that leaves no record is read as a pass that didn't run (`.forge/process-and-evidence.md`, the scheduled-passes table).
-This check reads the two passes whose own evidence is a hosting-platform record a query can check for staleness.
-The others in that table need no overdue check: a skipped mutation sample or standing-sweep firing correctly leaves nothing, and the scheduled CI dispatch's own runs are already visible.
+A scheduled pass that leaves no record is read as one that didn't run (`.forge/process-and-evidence.md`, the scheduled-passes table).
+This check reads the two passes whose evidence is a hosting-platform record a query can check for staleness; the others in that table need no overdue check (a skipped mutation sample or standing-sweep firing correctly leaves nothing, and the scheduled CI dispatch's runs are already visible).
 
 **(a) Post-merge review watermark.**
 
@@ -348,12 +342,11 @@ gh api "$R/issues/$PMR" --jq '{body}'
 ```
 
 Parse the sha and merge timestamp from the body's `**Watermark:**` line, in its one canonical format (`post-merge-review` step 9): `<sha> (PR #<n>, merged <ISO8601>)`.
-The PR number is part of that canonical line but this check has no use for it; nothing below reads it.
+The PR number is part of that line, but this check doesn't use it.
 If the line still reads "none yet", the pass has never run: flag a gap only if any PR has merged at all.
 
-Don't use the tracker's own `updated_at` to judge staleness: `post-merge-review`'s "Pending reviews" has the agent that merges a PR post a pending note on this same tracker as the merge's last step, so a comment lands on every merge whether or not a pass has run, and `updated_at` moves right along with it.
-Read the comments themselves instead, which is the review's own evidence of whether it ran, not of whether anything merged.
-Page explicitly rather than with `--paginate` (the same reason as "Query conventions" gives, and part (b) below): some proxies refuse the next-page links `--paginate` follows.
+Don't judge staleness by the tracker's `updated_at`: the agent that merges a PR posts a pending note on this tracker as the merge's last step (`post-merge-review`, "Pending reviews"), so `updated_at` moves on every merge whether or not a pass ran.
+Read the comments themselves, which are the review's own evidence, paging explicitly rather than with `--paginate`, since some proxies refuse the next-page links it follows ("Query conventions", and part (b) below).
 
 ```
 page=1
@@ -370,21 +363,20 @@ while :; do
 done
 ```
 
-A marker from any other commenter does not count, pending or archive: on a public repository, anyone can post one, and trusting it would let an outside comment silently narrow or widen the review window, or forge a covered-PR claim.
-A comment matching neither capture is ignored, including a documented note of a different, distinctly-marked shape such as `watch-main-ci/SKILL.md.jinja`'s Routine 2 missing-script note — it is neither a pending note nor an archive comment, and must never be mistaken for either.
+A marker from any other commenter does not count, pending or archive: on a public repository anyone can post one, and trusting it would let an outside comment silently narrow or widen the review window, or forge a covered-PR claim.
+A comment matching neither capture is ignored, including a distinctly-marked note such as `watch-main-ci`'s Routine 2 missing-script note, which is neither a pending note nor an archive comment and must never be mistaken for either.
 
-Comments come back oldest first (the same ordering part (b) below relies on), so the lines this loop prints are oldest first too.
-Each `covered` field is a comma-separated list of PR numbers (`post-merge-review`, step 7, posts this marker on every archive comment).
-Union every line's `covered` list, split on commas, into one set.
-Take the first line with a non-null `covered` as `<first-marked-archive>`, and the last such line as `<latest-marked-archive>` (either "none" if the tracker has no marked archive yet, e.g. every archive comment on it predates this marker).
+Comments, and so the lines this loop prints, come back oldest first (part (b) relies on the same ordering).
+Each `covered` field is a comma-separated list of PR numbers (`post-merge-review` step 7 puts this marker on every archive comment); union every line's list into one set.
+Take the first line with a non-null `covered` as `<first-marked-archive>` and the last as `<latest-marked-archive>` (either is "none" if no archive comment on the tracker carries the marker yet).
 
 A pending note (by its own `pending_pr`) counts as swept if either holds:
 
 - its PR number appears in the unioned `covered` set; or
-- `<first-marked-archive>` exists and the note's `created_at` is before it — grandfathering a note left over from before this marker existed, when every earlier archive comment was unmarked prose that this check could only tell apart from a pending note by elimination.
+- `<first-marked-archive>` exists and the note's `created_at` is before it, grandfathering a note from before the marker existed, when every earlier archive comment was unmarked prose this check could only tell from a pending note by elimination.
 
-Once `<first-marked-archive>` exists, a pending note posted after it is swept only by appearing in some `covered` list, never by timestamp alone: this is what makes a partial run's deliberately-left-pending notes (`post-merge-review` step 1, "leave substantial newly merged PRs for the next pass") correctly stay unswept instead of being silently cleared by the next run's archive comment just because it landed later.
-Before `<first-marked-archive>` exists at all (no marked archive comment has ever been posted), every pending note is swept by the old rule instead: unswept only if posted after the latest comment on the tracker of any kind, since there is nothing marked yet to check it against.
+Once `<first-marked-archive>` exists, a pending note posted after it is swept only by appearing in some `covered` list, never by timestamp alone, so a partial run's deliberately-left-pending notes (`post-merge-review` step 1, "leave substantial newly merged PRs for the next pass") stay unswept rather than being cleared by the next run's archive comment just because it landed later.
+Before any marked archive comment exists, a pending note is unswept only if posted after the latest comment of any kind on the tracker.
 
 Flag a gap when either:
 
@@ -403,21 +395,21 @@ Flag a gap when either:
   done
   sort /tmp/merged-since-cutoff.jsonl | head -n1
   ```
-  `<cutoff>` is the later of `<latest-marked-archive>`'s `created_at` (if any marked archive exists) and the watermark line's own `merged <ISO8601>` (if the line isn't "none yet") — the canonical watermark line already carries that timestamp, so this needs no separate lookup. Each is taken as the full timestamp, never truncated to a date.
-  Use `<latest-marked-archive>`, never `<first-marked-archive>`, here: anchoring the backstop on the *first* marked archive ever posted would keep re-flagging the same early PRs as overdue forever, even long after a later run's `covered` list has actually handled them.
-  Take the full result set's *earliest* `merged_at`, not the earliest-*created* matching PR's: the search API has no `sort=merged`, and a PR's creation order can diverge from its merge order enough to mask a real backlog behind a newer-looking timestamp, so page through every match and sort client-side instead of trusting `sort=created` to approximate it.
-  Taking the watermark PR's own merge time, not only a marked archive's, is what keeps this backstop live on a tracker that has run before but whose archive comments all predate the marker: without it, a tracker with no marked archive yet and no pending notes left to check would report clean while merges pile up with zero evidence for them — the same inversion the pending-note check alone cannot catch, now surviving in the one case this check has run before but not since the marker existed.
-  Skip the backstop only when neither source gives a `<cutoff>` (truly never run, which the watermark's own "none yet" case above already covers).
-  This is the backstop for the case pending notes alone cannot catch: merges continuing while no new note lands at all, which would otherwise read as "no unswept note, so not overdue" — backwards from SDLC-103's own "absence of evidence means the pass didn't run."
+  `<cutoff>` is the later of `<latest-marked-archive>`'s `created_at` (if one exists) and the watermark line's own `merged <ISO8601>` (unless it reads "none yet"), each taken as the full timestamp, never truncated to a date.
+  Use `<latest-marked-archive>`, never `<first-marked-archive>`: anchoring on the first would re-flag the same early PRs as overdue forever, long after a later run's `covered` list handled them.
+  Take the earliest `merged_at` across the full result set, not the earliest-created PR's: the search API has no `sort=merged`, and creation order can diverge from merge order enough to mask a real backlog, so page through every match and sort client-side.
+  The watermark's own merge time keeps this backstop live on a tracker whose archive comments all predate the marker: otherwise, with no marked archive and no pending notes left, it would report clean while merges pile up with no evidence.
+  Skip the backstop only when neither source gives a `<cutoff>` (never run, which the watermark's "none yet" case covers).
+  It catches what pending notes alone can't: merges continuing while no new note lands, which would otherwise read as "no unswept note, so not overdue", backwards from SDLC-103's "absence of evidence means the pass didn't run."
 
 No unswept note, no such merge, or neither older than 3 days, is not a gap, however old `updated_at` reads.
 
 **(b) Local full-suite evidence tracker.**
 Skip this part, reporting it under "Not checkable this run: no local full-suite script yet", while `{{ local_full_suite_script }}` is not on `origin/main`.
 
-The canonical record is a comment on the local full-suite evidence tracker `$LFS`, never a commit status: some environments' GitHub proxy refuses commit-status writes outright, so a check that only read statuses would wrongly read those environments as permanently overdue even while the script runs cleanly.
-A full run's comment carries a single-line marker `<!-- local-full-suite-evidence sha=<sha> finished=<ISO8601> aggregate=pass|fail -->`; a resumed or partial run posts no such comment, so its absence between two full runs is not itself a gap.
-A marker from any other commenter does not count: on a public repository, anyone can post one, and trusting it would let an outside comment plant a false "this ran clean" record.
+The canonical record is a comment on the local full-suite evidence tracker `$LFS`, never a commit status: some environments' GitHub proxy refuses commit-status writes outright, so reading only statuses would show those environments permanently overdue while the script runs cleanly.
+A full run's comment carries a single-line marker `<!-- local-full-suite-evidence sha=<sha> finished=<ISO8601> aggregate=pass|fail -->`; a resumed or partial run posts none, so its absence between two full runs is not a gap.
+A marker from any other commenter does not count: on a public repository anyone can post one, and trusting it would let an outside comment plant a false "this ran clean" record.
 
 ```
 page=1
@@ -431,49 +423,48 @@ while :; do
 done | tail -n1
 ```
 
-Comments come back oldest first, so the last line is the newest marked comment.
-The loop pages explicitly rather than with `--paginate`, for both reasons in "Query conventions".
-A last line of `API-FAILED` means a call failed or returned something other than a list partway, so report this part "not checkable" rather than reading an earlier page's marker as the newest evidence.
-Take its `created_at` only as a fallback — prefer the `finished=` value inside the marker itself, since the comment's own timestamp is when the API call happened, not necessarily when the run finished.
-Parse `sha=`, `finished=` and `aggregate=` out of the marker line (pattern: `sha=(\S+) finished=(\S+) aggregate=(\S+)`); treat a comment where any of the three is missing as malformed, equivalent to no evidence for that run.
+Comments come back oldest first, so the last line is the newest marked comment; the loop pages explicitly for both reasons in "Query conventions".
+A last line of `API-FAILED` means a call failed or returned something other than a list partway: report this part "not checkable" rather than reading an earlier page's marker as the newest evidence.
+Prefer the marker's own `finished=` value to the comment's `created_at`, which records the API call, not necessarily when the run finished.
+Parse `sha=`, `finished=` and `aggregate=` out of the marker line (pattern: `sha=(\S+) finished=(\S+) aggregate=(\S+)`); a comment missing any of the three is malformed, equivalent to no evidence for that run.
 Compare `finished` to now, and `sha` to `origin/main`'s current head (`git rev-parse origin/main`, or `gh api "$R/commits/main" --jq .sha`).
 
 Flag a gap when either:
 
-- a marked comment was found, it is more than 24 hours old, **and** `main`'s head has moved since that comment's `sha` (a quiet period where `main` simply hasn't moved is not a gap, since there would be nothing new to re-verify); or
-- no comment on the tracker carries the marker at all (not an API failure, so this isn't "not checkable": an evidence tracker with zero full-run evidence on it is itself the gap).
+- a marked comment was found, it is more than 24 hours old, **and** `main`'s head has moved since that comment's `sha` (a quiet period where `main` hasn't moved is not a gap: there is nothing new to re-verify); or
+- no comment on the tracker carries the marker at all (not an API failure, so not "not checkable": an evidence tracker with no full-run evidence is itself the gap).
 
-Where the environment also allows commit-status writes, a `{{ lfs_status_context }}` aggregate status will usually exist too on the same commit, but this check never depends on it and never reads it: the tracker comment alone is sufficient everywhere this routine runs, including an agent environment that cannot write commit statuses at all.
+Where the environment allows commit-status writes, a `{{ lfs_status_context }}` aggregate status usually exists on the same commit too, but this check never reads or depends on it: the tracker comment alone is sufficient everywhere this routine runs.
 
 Report both (a) and (b) as their own rows, each reading "none" when clean.
 A gap here is "not checkable this run" only when the API calls themselves fail (rate limit, no token); it is never silently skipped.
 
 ### 12. Stale coordinator boot receipt
 
-The boot routine (`.forge/coordinator-core.md`, "Start-of-session self-check") has every coordinator session write a receipt carrying the `origin/main` sha it booted from, as the first line of its checklist and again appended to `{{ working_folder }}/coordinator/boot-log.md`. This check finds a receipt that has fallen behind a later change to either file the boot routine reads.
+The boot routine (`.forge/coordinator-core.md`, "Start-of-session self-check") has every coordinator session write a receipt carrying the `origin/main` sha it booted from, as its checklist's first line and appended to `{{ working_folder }}/coordinator/boot-log.md`. This check finds a receipt left behind by a later change to either file the boot routine reads.
 
-In a project with several members, the one coordinator writes this receipt to the lead's working folder, not each member's own: run this check only in the lead repository's sweep (or the only member's), the same gating as 7(b), and read `boot-log.md` from the lead's working folder (its `## Repo facts` row) rather than this repository's own.
+In a project with several members, the one coordinator writes this receipt to the lead's working folder: run this check only in the lead's (or the only member's) sweep, gated like 7(b), and read `boot-log.md` from the lead's working folder (its `## Repo facts` row), not this repository's own.
 
 ```
 tail -n1 {{ working_folder }}/coordinator/boot-log.md
 ```
 
-Parse `<sha>` out of the line's `@ <sha>;` segment. If the file doesn't exist yet, or its last line doesn't match that shape, report "none yet" — not itself a gap: nothing has booted since this check (or the boot routine itself) existed.
+Parse `<sha>` out of the line's `@ <sha>;` segment. If the file doesn't exist yet, or its last line doesn't match that shape, report "none yet", not a gap: nothing has booted since this check or the boot routine existed.
 
 ```
 git fetch origin main
 git diff --name-only <sha> origin/main -- .forge/coordinator-core.md .agents/skills/build-thread-brief/SKILL.md
 ```
 
-A non-empty result is a gap: the coordinator core file or the build-thread-brief skill changed on `origin/main` after the latest receipt's sha, so that receipt no longer reflects what the coordinator actually read. Flag it as a **Should**, never a Must: the next boot (the next compaction, or the coordinator's own next session) picks up the change on its own, so a receipt sitting stale for a while is a staleness gap, not an unsafe one.
+A non-empty result is a gap: the coordinator core or the build-thread-brief skill changed on `origin/main` after the receipt's sha, so the receipt no longer reflects what the coordinator read. Flag it as a **Should**, never a Must: the next boot (the next compaction, or the coordinator's next session) picks up the change on its own, so a stale receipt is a staleness gap, not an unsafe one.
 
-**Worked example.** `boot-log.md`'s last line reads `Booted from lead-repo @ a1b2c3d; design/review=opus, build=sonnet, mechanical=haiku; timer armed: yes`. A later commit `f0e9d8c` edits `.forge/coordinator-core.md`'s "Slots and the queue" section. `git diff --name-only a1b2c3d origin/main -- .forge/coordinator-core.md .agents/skills/build-thread-brief/SKILL.md` returns `.forge/coordinator-core.md`: non-empty, so this is a gap — flag "boot receipt stale: coordinator core changed since `a1b2c3d`" as a Should. Had `f0e9d8c` instead touched only an unrelated file (say `docs/principles.md`), the same `git diff --name-only` would return nothing, and the receipt would still be current: no gap.
+**Worked example.** `boot-log.md`'s last line reads `Booted from lead-repo @ a1b2c3d; design/review=opus, build=sonnet, mechanical=haiku; timer armed: yes`. A later commit edits `.forge/coordinator-core.md`'s "Slots and the queue" section, so the `git diff --name-only` above returns `.forge/coordinator-core.md`: flag "boot receipt stale: coordinator core changed since `a1b2c3d`" as a Should. Had that commit touched only an unrelated file (say `docs/principles.md`), the diff would be empty and the receipt still current.
 
 This check does not run, and is reported under "Not checkable this run" rather than as drift, when `.forge/coordinator-core.md`'s "## Start-of-session self-check" section isn't on `origin/main` yet, or when this run's thread can't read the project's shared files at all.
 
 ### 13. Post-merge review tracker body corrupted
 
-The tracker's own body (`post-merge-review` step 9, "Keeping the tracker tidy") carries only the watermark, the procedure pointer and the run log index; a pending note or an archive record is always a comment, never a body edit (`post-merge-review`, "Pending reviews"). A stray body-write that sends a pending note's own text as the new body, rather than posting it as a comment, destroys the watermark and run log this check exists to protect, with nothing else noticing until the next pass is due.
+The tracker's body (`post-merge-review` step 9, "Keeping the tracker tidy") carries only the watermark, the procedure pointer and the run log index; a pending note or archive record is always a comment, never a body edit (`post-merge-review`, "Pending reviews"). A stray body-write that sends a pending note's text as the new body destroys the watermark and run log, and nothing else notices until the next pass is due.
 
 ```
 gh api "$R/issues/$PMR" --jq '{body}'
@@ -482,33 +473,30 @@ gh api "$R/issues/$PMR" --jq '{body}'
 Flag a gap when either:
 
 - the body does not contain the literal text `**Watermark:**`; or
-- the body contains a pending-note or archive marker (`<!-- pending-post-merge-review` or `<!-- post-merge-review-archive`) — markers that belong only in comments, so either one appearing in the body is itself the signature of this failure, not merely a missing-watermark side effect.
+- the body contains a pending-note or archive marker (`<!-- pending-post-merge-review` or `<!-- post-merge-review-archive`): these belong only in comments, so either one in the body is the signature of this failure, not merely a side effect of a missing watermark.
 
-Either condition is a Must: the tracker is this repo's only durable record of the standing cadence's progress, and losing it silently is the exact "absence of evidence" failure SDLC-103 exists to catch, this time of the record itself rather than of whether a pass ran. Restore the body from the latest run log entry's archive comment (the last-known-good source), then raise, as its own `needs-decision` finding, how the body-write happened, so the write path that caused it gets fixed rather than only its symptom.
+Either condition is a Must: the tracker is this repo's only durable record of the cadence's progress, and losing it silently is the "absence of evidence" failure SDLC-103 exists to catch, of the record itself. Restore the body from the latest run log entry's archive comment (the last-known-good source), then raise how the body-write happened as its own `needs-decision` finding, so the write path gets fixed, not only its symptom.
 
 A gap here is "not checkable this run" only when the API call itself fails; it is never silently skipped.
 
 ### 14. `ready-for-structure` left on after its own design-exit pass is already done
 
-A backstop for the mechanical label sync `docs/agents/triage-labels.md`'s "Mechanical label sync after design-type work" requires at `implement-with-merge` step 0a: this check catches a ticket where that step was skipped.
+A backstop for the mechanical label sync `docs/agents/triage-labels.md`'s "Mechanical label sync after design-type work" requires at `implement-with-merge` step 0a, catching a ticket where that step was skipped.
 
 ```
 gh api --paginate "$R/issues?labels=ready-for-structure&state=open&per_page=100" \
   --jq '.[] | {number, title, body}'
 ```
 
-For each result, flag it as a gap when its already-fetched body, or `gh api --paginate "$R/issues/<n>/comments" --jq '.[].body'`, contains a `Structure guidance` heading (the design-exit pass has already run and written it, per `implement-with-merge` step 0a, into either place).
-
-That condition means the design-exit pass that was supposed to flip this ticket to `ready-for-build` has already happened; report it as a labelling gap, fixed by removing `ready-for-structure` and adding `ready-for-build` (never by re-running the design-exit pass).
-A result with no `Structure guidance` heading is not a gap for this check: the ticket is still genuinely waiting on its design-exit pass.
-A feature's own tracker never carries `ready-for-structure`, so it never appears in this check's result set; check 5's "awaiting stage 3" listing is the equivalent backstop for `ready-for-feature-design`.
+Flag a result as a gap when its fetched body, or `gh api --paginate "$R/issues/<n>/comments" --jq '.[].body'`, contains a `Structure guidance` heading: the design-exit pass that should have flipped it to `ready-for-build` has already run (`implement-with-merge` step 0a writes the heading into either place).
+Report it as a labelling gap, fixed by removing `ready-for-structure` and adding `ready-for-build`, never by re-running the design-exit pass.
+A result with no `Structure guidance` heading is still genuinely waiting on its design-exit pass, so it is not a gap.
+A feature's own tracker never carries `ready-for-structure`; check 5's "awaiting stage 3" listing is the equivalent backstop for `ready-for-feature-design`.
 
 ## Not built, and why
 
-- **No `docs/agents/` reference page.** It would fail the deletion test: it would only repeat this file.
-  Every procedure in this family (`post-merge-review`, `watch-main-ci`) keeps its queries in the skill itself.
-- **No script or runtime code.** Every check here is an agent-run API read.
-  A script would add a coverage obligation and a parser for prose that the owner and threads write by hand, and an agent reads that prose better.
+- **No `docs/agents/` reference page.** It would fail the deletion test by repeating this file; every procedure in this family (`post-merge-review`, `watch-main-ci`) keeps its queries in the skill itself.
+- **No script or runtime code.** Every check is an agent-run API read; a script would add a coverage obligation and a parser for hand-written prose that an agent reads better.
   If a dry run shows a check's parsing is unreliable by hand, file that as its own ticket rather than building a parser ad hoc.
-- **No tracker issue of its own.** This skill reports and keeps no state (no watermark, because every run is a full sweep), and it never posts to the tracker except a pre-release report on the release ticket.
+- **No tracker issue of its own.** This skill keeps no state (no watermark: every run is a full sweep), and never posts to the tracker except a pre-release report on the release ticket.
 - **It never edits `docs/agents/triage-labels.md`.** It only reads the labels defined there.

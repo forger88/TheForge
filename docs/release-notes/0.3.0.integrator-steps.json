@@ -1,0 +1,47 @@
+{
+  "version": "0.3.0",
+  "items": [
+    {
+      "id": "712",
+      "refs": [],
+      "breaking": true,
+      "summary": "`template/scripts/check_review_gate.py` now fails any PR that claims the light gate for an edit to `docs/requirements/requirements-specification.md`, including a status-only edit — the gate is chosen by file path (`is_light_gate_eligible`), never by the builder's own judgement. After syncing, any open PR that currently claims the light gate for a spec-file edit fails this check immediately. Convert it to the full gate (Standards and Spec review, self-review) before merging it."
+    },
+    {
+      "id": "708",
+      "refs": [],
+      "breaking": false,
+      "summary": "After syncing, the pinned `pillow`/`brotli` versions in `docs/tools/requirements.txt` (and its `template/` mirror) move to `13.0.0`/`1.2.1`, closing two open CVEs (Pillow decoder/loader heap overflows; a Brotli decoder out-of-bounds write). Compatibility with this toolchain's only consumer, `weasyprint`, was verified end to end against a real document build. No other action needed."
+    },
+    {
+      "id": "732",
+      "refs": [],
+      "breaking": false,
+      "summary": "After syncing, a guard-removal-capable test's `Evidence:` line must name each rule the test claims to cover, and where that rule list came from, not just one red-then-green mutation of a single rule."
+    },
+    {
+      "id": "735",
+      "refs": [],
+      "breaking": false,
+      "summary": "After syncing, use `template/scripts/check_review_gate_premerge.sh [PR_NUMBER]` immediately before merging a PR instead of assembling its body and changed-file list by hand; it fetches both fresh from GitHub and runs them against the checker script it fetches from `main` through the contents API, printing the head sha to pin the merge to. It doesn't yet detect a GitHub-side truncated file list, fails open if the fetched checker itself comes back empty, and only that fetched checker — not the wrapper script you run — is pinned to `main`; keep checking the PR's changed-file count by hand, and run the wrapper from a trusted checkout, until that's fixed."
+    },
+    {
+      "id": "763",
+      "refs": [],
+      "breaking": false,
+      "summary": "After syncing, `docs/software-development-lifecycle.md`'s SDLC-042 bullet and the adjacent §5 prose carry reworded text making explicit that a parent thread's sub-agents, started on a builder's behalf, stand in for the builder's own and are not \"a review by another thread\". `forge-sync` holds the sync PR at this point until the project's own owner approves the new wording (SDLC-117); expect that hold — it is not a sync failure."
+    },
+    {
+      "id": "772",
+      "refs": [],
+      "breaking": false,
+      "summary": "After syncing, re-paste the text between the markers in `docs/agents/coordinator-core-snippet.md` into the harness's project-instruction field again — the coordinator-core reload proof now reports the abbreviated `origin/main` sha instead of the full 40-character hash."
+    },
+    {
+      "id": "805",
+      "refs": [],
+      "breaking": false,
+      "summary": "After syncing, re-paste the updated coordinator-core snippet from `docs/agents/coordinator-core-snippet.md` into the harness's project instructions again (`check_coordinator_core.py drift` fails until you do) — it now tells a coordinator that can't reach the coordinator core to spawn a thread to fetch a copy, and to double-check it read the whole file before reporting a partial-copy loss."
+    }
+  ]
+}

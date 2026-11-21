@@ -10,8 +10,8 @@ A consolidated decision thread puts everything waiting on the owner in front of 
 The owner reads each card cold: assume they remember nothing about the ticket behind it.
 The coordinator starts the thread, at build-tier, and its trigger lives in `.forge/coordinator-core.md`, "Owner approvals".
 
-The thread is **read-only** on the tracker and the repos: it reads tickets, PRs and threads, and its only writes are its own messages, its cards and a background file.
-Every answer is relayed to the coordinator (step 5), which records it and routes the follow-up.
+The thread is **read-only** on the tracker and the repos: its only writes are its own messages, its cards and a background file.
+It relays every answer to the coordinator (step 5), which records it and routes the follow-up.
 
 ## 1. Gather
 
@@ -19,21 +19,21 @@ Collect candidates from every source below, for every repo the coordinator serve
 
 - open `needs-decision` tickets (`queue-sweep` check 9 has the query);
 - pending owner approvals: wording a ticket or design comment asks the owner to approve, and spec-only or lifecycle-doc PRs waiting on that approval (`.forge/requirements-driven-changes.md`, `.forge/process-and-evidence.md`);
-- open PRs whose merge is reserved for the owner, such as one built with `implement`, which leaves the merge to a human;
+- open PRs whose merge is reserved for the owner, such as one built with `implement`;
 - held work: a ticket or thread blocked on something only the owner can do, and any decision card still unanswered in another thread;
 - the items the coordinator listed in this thread's brief.
 
-The step is done when every source has been queried, and each candidate carries a link to where it lives.
+Done when every source is queried and each candidate links to where it lives.
 
 ## 2. Verify against current state
 
-For each candidate, re-read the ticket or PR and its latest comments now, never a summary of it.
+Re-read each candidate's ticket or PR and its latest comments now, never a summary.
 Drop an item that is already settled: closed, its card answered, its owner quote already posted, or its question overtaken by a later change.
 A settled standing fact of the project (how often CI runs, who merges in a given repo) is context for a card, never a card of its own.
 An owner task that has no choice in it, such as a hands-on check only the owner can run, gets a line in the summary (step 4), not a card.
 Note each item that waits on another one, and which.
 
-The step is done when every candidate is marked keep, drop (with the reason) or owner task.
+Done when every candidate is marked keep, drop (with the reason) or owner task.
 
 ## 3. Write one card per item
 
@@ -46,9 +46,9 @@ Each card carries:
 - **a recommendation** with a one-line reason;
 - **a dependency mark** when the item waits on another card or task ("best decided after card <n>").
 
-When an item's background will not fit the card, put the fuller version in one background file the owner can open, and link it from the summary.
+When an item's background will not fit the card, put the fuller version in one background file, linked from the summary.
 
-The step is done when every kept item has one drafted card.
+Done when every kept item has one drafted card.
 
 ## 4. Post
 
@@ -59,14 +59,14 @@ First post one summary message:
 - each owner task from step 2;
 - the link to the background file, when there is one.
 
-Then post the cards in that same order, one card per item.
+Then post the cards in that order, one per item.
 
-The step is done when the summary and every drafted card are posted.
+Done when the summary and every drafted card are posted.
 
 ## 5. Relay each answer
 
 When the owner answers a card, send the coordinator the record in the form `.forge/process-and-evidence.md` gives: `Owner chose "<option label>" on decision card <id>, <date>`, plus any free text the owner added, and the ticket it belongs to.
-When the owner answers in words instead, relay their exact words and record the option their words chose against the card.
+When the owner answers in words instead, relay their exact words and record against the card the option they chose.
 The coordinator posts the quote on the ticket and routes the follow-up (`.forge/coordinator-core.md`, "Owner approvals").
 
 A card is answered only by the owner.

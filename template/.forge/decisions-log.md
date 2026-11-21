@@ -1,21 +1,18 @@
 # The decisions log
 
-`docs/decisions-log.md` records decisions that produce no shipped code and would otherwise exist only as a closed issue.
-It holds two kinds of entry: a finding or proposal considered and declined (closed `wontfix` or as not planned), and an idea named but not yet designed.
-Its job is to stop a settled question from being reopened by someone who cannot see the closed issue.
+`docs/decisions-log.md` records decisions that produce no shipped code and would otherwise exist only as a closed issue: a finding or proposal declined (closed `wontfix` or not planned), or an idea named but not yet designed.
+It stops a settled question being reopened by someone who cannot see the closed issue.
 
-Shipped-feature design lands in `docs/adr/` and `docs/design/` instead.
-The log is not a mirror of the issue tracker: it does not cover shipped work, the post-merge review's run archive, or ordinary bug fixes.
+Shipped-feature design goes in `docs/adr/` and `docs/design/` instead.
+The log does not mirror the tracker: no shipped work, post-merge review run archive or ordinary bug fixes.
 
 ## When to add an entry
 
-Closing an issue `wontfix` or as not planned, when it carries a real finding or proposal, adds a few lines to `docs/decisions-log.md` in the same PR or commit that closes it.
-A duplicate, an invalid report, or routine housekeeping needs no entry.
-The entry says what was considered, why it was not done, and the issue number.
-Sibling findings closed together share one entry.
-Writing the entry is part of closing the issue, not a follow-up.
+Closing an issue `wontfix` or not planned, when it carries a real finding or proposal, adds an entry in the same PR or commit that closes it, not as a follow-up.
+A duplicate, an invalid report or routine housekeeping needs none.
+The entry says what was considered, why it was not done, and the issue number; sibling findings closed together share one entry.
 
 ## Shape of an entry
 
-Each entry is a short dated section, newest first, with a heading naming the decision, two to five lines on what was considered and why it was declined, and the issue number.
-The log is a record, so unlike the project's other docs it narrates what was decided and why.
+Each entry is a short dated section, newest first: a heading naming the decision, two to five lines on what was considered and why it was declined, and the issue number.
+As a record, the log narrates what was decided and why, unlike the project's other docs.

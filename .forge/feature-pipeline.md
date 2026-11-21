@@ -38,7 +38,7 @@ The interview covers what in the domain will change underneath the project, whic
 Each question states, in a line, why it is being asked, on top of `grilling`'s own shared round format, which doesn't require a why on its own.
 Each principle whose exact wording the owner approves is written into `docs/principles.md` (the principles part of `domain-modeling`), with its why and its enforcement, in one ticketed docs PR that quotes the owner's approval of that wording.
 Stage 0 also chooses the project's real tools for the generic guards (linter, dead-code tool, size-cap measurement, test-coverage tool), sets the `coverage_floor` answer from a measured baseline of the project's own suite, and replaces the placeholder commands the template shipped with.
-Stage 0 also writes `scripts/local-full-suite.sh`, this project's own local stand-in for the gap between scheduled CI passes (`.forge/ci-and-checks.md`; `watch-main-ci`'s Routine 2 names its purpose, schedule and evidence format), rather than leaving it as a gap for Main Health to discover later.
+Stage 0 also writes `scripts/local-full-suite.sh`, this project's own local stand-in for the gap between scheduled CI passes (`.forge/ci-and-checks.md`, which also names how stage 0 sets its answers when its name or switch differs from the defaults; `watch-main-ci`'s Routine 2 names its purpose, schedule and evidence format), rather than leaving it as a gap for Main Health to discover later.
 `docs/principles.md` holding at least one owner-confirmed principle beyond the forge-seeded ones on `main` is the record that stage 0 has run.
 Stage 0 has no line on a feature's checklist.
 
