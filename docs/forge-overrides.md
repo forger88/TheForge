@@ -122,18 +122,20 @@ Remove an entry once the change has gone upstream and come back through `forge-s
 
 **Upstream candidate:** no, project-specific. Porting content *into* TheForge from a consuming project is a concept unique to this repository's own self-governance; no generated project has one.
 
-### `.agents/skills/forge-sync/SKILL.md`
-
-**Changed:** added a "Report the sync back to the owner" closing step, from the owner's own request for a sync's closing summary, and one cross-reference to it from "Review and merge". `template/.agents/skills/forge-sync/SKILL.md` is unchanged, so the two files now diverge.
-
-**Why:** the ticket scoped the change to this project's own rendered copy only, so the owner can see it land and read a closing report on the next sync of this repository's own `.agents/` content from upstream TheForge before it is carried into the shipped skill that every other consuming project gets.
-
-**Upstream candidate:** yes, rewritten generically. The new step names no project-specific term, so it can go upstream unchanged; it hasn't been proposed there yet.
-
 ### `.forge/main-health-patterns.md`
 
 **Changed:** added a paragraph to "Patterns worth recording" naming this repository's own fourth recurrence of the same post-merge-review finding shape, with its merged-PR history.
 
-**Why:** `.forge/main-health-patterns.md`'s own header says this file states what the Main Health thread watches "for this project"; the fix ticket that introduced this paragraph named this exact path for recording the recurrence, and the pattern itself (a category-8-shaped PR search missing the fix's own diff and any guard-script change outside the paths a prior round happened to list) cites this repository's own merged-PR history throughout, so it reads as this project's own experience, not generic guidance any consuming project could use unchanged.
+**Why:** `.forge/main-health-patterns.md`'s own header says this file states what the Main Health thread watches "for this project"; the fix ticket that introduced this paragraph named this exact path for recording the recurrence, and most of the paragraph cites this repository's own merged-PR history throughout, so it reads as this project's own experience, not generic guidance any consuming project could use unchanged. Its closing sentence is the exception — found on a second look at this log, prompted by the owner asking what else might have been wrongly kept local-only after the `forge-sync` skill's own candidate (above): the lesson that a category-shaped PR search by file path misses hits outside the paths it happened to list, and that a periodic full-range re-sweep is the fix, carries no real issue number and reads as a general Main Health lesson, the same shape as the three already-generic patterns listed just above it in this file.
+
+**Upstream candidate (closing sentence only):** yes — proposed as [ticket 718](https://github.com/forger88/TheForgeStaging/issues/718), 2026-11-15. The rest of the paragraph stays `no, project-specific`.
+
+### `.agents/skills/post-merge-review/SKILL.md`, `.agents/skills/queue-sweep/SKILL.md`, `.forge/model-tiers.md` — real-issue-number citations
+
+**Changed:** three sentences each carry a parenthetical citation of one of this repository's own issue numbers (post-merge-review's "Pending reviews" paragraph, queue-sweep's finding (e), and model-tiers.md's self-report paragraph), where the `template/` mirror carries the same sentence generically, with no number. Each citation lands at root only, in the same PR that also updated the `template/` mirror generically — the PR that touched post-merge-review's paragraph says so in its own body ("The root file's version also cites the issue; the `template/` mirror omits that citation to stay neutral."). Found unlogged during the 2026-11-15 self-sync to v0.2.0: `copier update` raised the first two (post-merge-review, queue-sweep) as merge conflicts against the newly-released, still-generic `template/` wording, resolved by keeping the project's cited version unchanged (no net diff against the pre-sync file, since the resolution matches what was already there); the third (model-tiers.md) was never part of a conflict at all — upstream hadn't touched that sentence in this sync's range — and only surfaced because "Check the result"'s full render-diff compares root against a clean render regardless of what `copier update` itself touched. This entry retroactively logs all three the same way, so a later sync's conflict resolution keeps the citations instead of taking upstream's uncited version.
+
+**Why:** these three decision/behaviour citations are, like the rest of this repository's self-governing docs (see ".pre-commit-config.yaml" above and the render-path exclusions it documents), citing this project's own real tracker history; `template/`'s copy stays neutral per "TheForge stays project-neutral" (`CLAUDE.md`), so the two can never converge on their own.
+
+**Upstream candidate:** no, project-specific. Each citation names a real issue number from this repository's own tracker; `template/`'s mirror has no equivalent repository to cite.
 
 **Upstream candidate:** no, project-specific. The paragraph is written entirely in terms of this repository's own issue and PR history; a generated project has none of that history and would gain nothing from carrying this text forward on its next sync.

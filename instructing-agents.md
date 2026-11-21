@@ -32,7 +32,7 @@ It will:
 3. run a **grilling interview** with you (`grill-me`), a round of numbered questions at a time, each with a recommended answer, drawing out the principles every later feature must respect: what in your domain will change underneath you, which external systems you trust and how far, which frameworks you build on rather than write, size and complexity budgets, your test philosophy and your security posture;
 4. write each principle you confirm into `docs/principles.md`, with why it holds and what enforces it, in one ticketed docs PR that quotes your confirmation.
 
-`docs/principles.md` holding at least one owner-confirmed principle beyond the forge-seeded one on `main` is the record that stage 0 has run.
+`docs/principles.md` holding at least one owner-confirmed principle beyond the forge-seeded ones on `main` is the record that stage 0 has run.
 Stage 0 is also when the project chooses its real tools for the generic guards (its linter, its dead-code tool, its size-cap measurement) and replaces the placeholder commands the template shipped with.
 
 If one coordinator serves several of your repositories, add a line reading `Lead repo: <owner>/<name>` to your scope section, naming which one.

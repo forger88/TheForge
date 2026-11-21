@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import io
 import json
 import sys
@@ -326,6 +327,68 @@ class TemplatedEntryRequiresJinjaInTemplateRepo(TemplateRepoFixture):
             }
         )
         self.assertEqual(self.run_guard()[0], 0)
+
+
+def expected_hash(files: list[tuple[str, bytes]]) -> str:
+    """The digest hash_target must produce for `files` given in POSIX order
+    (the order the recorded `computedHash` entries all use)."""
+    digest = hashlib.sha256()
+    for rel, body in files:
+        digest.update(rel.encode() + b"\0" + body + b"\0")
+    return digest.hexdigest()
+
+
+class HashTargetOrder(unittest.TestCase):
+    """A `WindowsPath` sorts case-insensitively, which can order a mixed-case
+    tree differently from a `PosixPath` and so change the hash a Windows
+    checkout computes for the same directory. The guard test: these must go
+    red if `hash_target` goes back to sorting the bare `Path` objects
+    instead of their `.relative_to(path).parts` tuples."""
+
+    def test_directory_hash_orders_files_case_sensitively(self) -> None:
+        # `SKILL.md` before `agents/openai.yaml` is the POSIX order the
+        # recorded hashes use; a Path sort on Windows puts `agents/` first.
+        with tempfile.TemporaryDirectory() as tmp:
+            skill = Path(tmp)
+            (skill / "agents").mkdir()
+            (skill / "agents" / "openai.yaml").write_bytes(b"yaml")
+            (skill / "SKILL.md").write_bytes(b"skill")
+            self.assertEqual(
+                check_skills_lock.hash_target(skill),
+                expected_hash([("SKILL.md", b"skill"), ("agents/openai.yaml", b"yaml")]),
+            )
+
+    def test_directory_hash_orders_by_path_components_not_whole_string(self) -> None:
+        # Path order compares component tuples: `a/x` sorts before `a-b`
+        # even though "-" is below "/" as a bare character.
+        with tempfile.TemporaryDirectory() as tmp:
+            skill = Path(tmp)
+            (skill / "a").mkdir()
+            (skill / "a" / "x").write_bytes(b"x")
+            (skill / "a-b").write_bytes(b"b")
+            self.assertEqual(
+                check_skills_lock.hash_target(skill),
+                expected_hash([("a/x", b"x"), ("a-b", b"b")]),
+            )
+
+    def test_sort_uses_an_explicit_parts_key_not_the_bare_path_object(self) -> None:
+        """The two tests above pin the resulting hash, but Path's own
+        ordering already matches `.parts` order on POSIX, so they alone
+        would not go red if the fix were reverted to a bare `sorted(paths)`
+        on this platform. This test pins the implementation directly: a
+        revert drops the `key=` argument entirely."""
+        with tempfile.TemporaryDirectory() as tmp:
+            skill = Path(tmp)
+            (skill / "agents").mkdir()
+            (skill / "agents" / "openai.yaml").write_bytes(b"yaml")
+            (skill / "SKILL.md").write_bytes(b"skill")
+            with mock.patch.object(check_skills_lock, "sorted", wraps=sorted) as spy:
+                check_skills_lock.hash_target(skill)
+            self.assertIsNotNone(
+                spy.call_args.kwargs.get("key"),
+                "hash_target must sort by an explicit key (the relative path's "
+                ".parts), not by Path's own comparison",
+            )
 
 
 if __name__ == "__main__":

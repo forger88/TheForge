@@ -91,7 +91,7 @@ TRACKERS = {
         "Collects `deferred-arch-finding` items from stage 8 architecture passes and post-merge review runs: "
         "review-sourced findings parked on priority, not owner ideas.\n\n" + STANDING)),
     "local_full_suite_evidence_tracker": ("Local full-suite evidence", (
-        "Holds the local full-suite stand-in's evidence. Each full run that passes `LOCAL_FULL_SUITE_PUBLISH=1` "
+        "Holds the local full-suite stand-in's evidence. Each full run with its publish switch on "
         "posts one comment here carrying a `<!-- local-full-suite-evidence sha=... finished=... aggregate=... -->` "
         "marker plus a per-step table; the newest such comment is the current status. This is the run's canonical "
         "evidence (SDLC-099) in every environment, including ones whose GitHub proxy refuses commit-status writes; "

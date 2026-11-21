@@ -71,7 +71,10 @@ def hash_target(path: Path, exclude: Path | None = None) -> str:
     if path.is_file():
         return hashlib.sha256(path.read_bytes()).hexdigest()
     digest = hashlib.sha256()
-    for file in sorted(p for p in path.rglob("*") if p.is_file() and p != exclude):
+    files = (p for p in path.rglob("*") if p.is_file() and p != exclude)
+    # Sort on the relative path's str parts, not the Path: WindowsPath orders
+    # case-insensitively (`agents/` before `SKILL.md`), which changes the hash.
+    for file in sorted(files, key=lambda p: p.relative_to(path).parts):
         digest.update(file.relative_to(path).as_posix().encode())
         digest.update(b"\0")
         digest.update(file.read_bytes())

@@ -1,6 +1,6 @@
 # ADR-0014: The coordinator-core reload proof carries the fetched commit sha, and nothing already present counts as current
 
-**Status:** accepted; supersedes constraint 4 as ADR-0013 restated it; adds to ADR-0012's constraints
+**Status:** accepted; supersedes constraint 4 as ADR-0013 restated it; adds to ADR-0012's constraints; its proof format (full vs. abbreviated sha) amended by ADR-0015
 
 ## Context
 

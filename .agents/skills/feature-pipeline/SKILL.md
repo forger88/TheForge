@@ -19,7 +19,7 @@ Call it directly only when starting or queueing a feature outside those two path
 ## Stage 0: project inception (once per repo)
 
 Stage 0 runs once per repo, not per feature, so it has no line on the checklist below.
-Its record is `docs/principles.md` on `origin/main` holding at least one owner-confirmed principle beyond the forge-seeded one (the generated skeleton's "No principles recorded yet" heading means stage 0 has not run).
+Its record is `docs/principles.md` on `origin/main` holding at least one owner-confirmed principle beyond the forge-seeded ones (the generated skeleton's "No principles recorded yet" heading means stage 0 has not run).
 
 **Check, at the start of job (a):** if stage 0 has not run, don't start the feature's checklist yet.
 Put a decision card to the owner, "Run stage 0 (project inception) before this feature?", with two options: "Run stage 0 now" (recommended) and "Start the feature without it".

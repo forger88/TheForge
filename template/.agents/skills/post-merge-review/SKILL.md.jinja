@@ -7,18 +7,17 @@ disable-model-invocation: true
 # Post-merge review
 
 This is the project's second review: a re-review, at review-tier (`.forge/orchestration.md`; `.forge/model-tiers.md` for the model), of every PR merged to `main`.
-It catches the class of bug a per-PR diff review structurally can't see: cross-PR, migration and resource-exhaustion-under-execution bugs that only show up across several merged PRs together.
-It sits beside `code-review` and `self-review` as the project's standing review tooling.
+It catches what a per-PR diff review structurally can't see: cross-PR, migration and resource-exhaustion-under-execution bugs that show only across several merged PRs.
 
 **The post-merge review tracker {{ pmr_ref }}** holds the reviews still to be done and the reviews done (SDLC-095): a pending note for each merged PR no run has covered yet, the watermark, the run log, and the findings each run files as its sub-issues.
-This file is the single source of truth for the procedure; don't let a copy drift into the issue body, where size limits and edits lose it.
+This file is the single source of truth for the procedure; don't copy it into the issue body, where size limits and edits lose it.
 
 **This is file-only**: a run opens issues and never opens fix PRs.
 
 ## Pending reviews
 
 When a PR merges, the agent that merged it posts one comment on the tracker {{ pmr_ref }}, as the merge's last step.
-A spec-only PR and a lifecycle-document PR are now ordinary agent-merged PRs once the owner's approval of their wording is recorded (`.forge/process-and-evidence.md`, "What needs the owner's approval before a merge"; SDLC-043), so the agent that merges one posts the note itself, as line 20 says.
+That includes a spec-only or lifecycle-document PR, which the agent merges once the owner's approval of its wording is recorded (`.forge/process-and-evidence.md`, "What needs the owner's approval before a merge"; SDLC-043).
 When the owner or the person merges a PR an agent opened instead (an `implement` PR, where the owner chose that route, or a release-notes PR), the agent that opened it posts the note once it sees the merge:
 
 ```
@@ -26,29 +25,24 @@ When the owner or the person merges a PR an agent opened instead (an `implement`
 Pending post-merge review: PR #<PR number> for #<ticket number>, merged as <short sha>.
 ```
 
-Post the marker and sentence above exactly as shown, with only the PR, ticket and sha values filled in and nothing else changed; `queue-sweep` check 11(a) and this skill's own Procedure step 1 key off that marker to find a pending note and match it to a PR.
-Extra context worth recording for the reviewer (which PR of a multi-PR ticket, what the diff covers, a size note) goes as separate prose *after* this block, never replacing or folding into it.
+Post the marker and sentence exactly as shown, filling in only the PR, ticket and sha values, because `queue-sweep` check 11(a) and Procedure step 1 key off that marker.
+Extra context for the reviewer (which PR of a multi-PR ticket, what the diff covers, a size note) goes as separate prose *after* the block, never inside it or replacing it.
 
 The note is a comment, never an edit to the tracker's body and never a sub-issue, because sub-issues are findings.
 A note is pending until a run's archive comment (step 7) lists its PR as covered; that list is the record, not the per-PR verdicts.
 The notes are the review's input record; the watermark query (step 1) still decides the window, and the notes cross-check it.
 **Trust a pending note only when its comment's `author_association` is `OWNER`, `MEMBER` or `COLLABORATOR`.**
-On a public repository anyone can comment, and an unauthenticated note could add a PR to the review window that was never actually merged by the project's own agents, or claim coverage it doesn't have; step 1's watermark query filters on this the same way.
+On a public repository anyone can comment, so an untrusted note could add a PR the project's agents never merged, or claim coverage it doesn't have; step 1's watermark query filters the same way.
 
 ## Grading rules
 
 - **Grade against the project's real scale and tenancy, never the demo's.** Never downgrade an authorization, isolation or cross-tenant finding because "only one tenant exists today" or "it looks fine for one user"; grade it against what the requirements say the system must support.
 - **For any test asserting a security guard, permission check or other invariant (new or pre-existing), check that it actually fails when the guard is removed or neutered.**
-  Don't read the test and judge it plausible; verify it directly (comment out the guard, re-run, confirm red, restore it) before crediting it as real coverage.
-  A guard test that can't fail this way is itself a Must finding, not a pass.
-- **Concurrency and lifecycle checklist.** Run it whenever a surviving line touches connections, pools, background tasks, sockets, locks, slots or claims, or per-session or per-connection cached state; it is the same checklist `.agents/skills/self-review/SKILL.md`'s "Concurrency and lifecycle checklist (triggered)" runs before merge:
-  1. **Teardown:** for each connection, pool, task or subscription the surviving lines create, what it does on shutdown, cancellation and error, and who closes it.
-  2. **Fire-and-forget failure:** does a failing lookup or exception in a background path abort work it shouldn't, or vanish silently?
-  3. **Stale cached state:** state cached per connection or per session that a membership, permission or ownership change can make stale; who invalidates it?
-  4. **Release on every exit:** each slot, claim, lock or counter the surviving lines take is released on every path out (return, raise, cancel, timeout).
-  5. **Ordering under concurrency:** two requests interleaving at each `await` the surviving lines add.
-  6. **Operation state across an identity switch:** a pending operation whose user, account or workspace changes before it completes is cancelled or dropped, never applied to the new context.
-- **Governed artefacts.** A surviving line in a file the artefact map lists (`.forge/agent-skills-and-reference.md`, "Artefacts and the skills that govern them") is checked against that file's governing skill, and against the file's own Conventions section where it has one, the same as the self-review's check (SDLC-119). A Conventions line that contradicts the skill is itself a finding. A break in form alone is a Should, never a Must: the document is wrong in form, nothing is broken.
+  Verify it directly (comment out the guard, re-run, confirm red, restore it) rather than judging it plausible; a guard test that can't fail this way is a Must finding.
+  When the guard is made of several rules (a skip list, an exemption list, a threshold, a fallback path) sharing one test file, check every rule the file claims to cover, not just one: neuter each rule on its own, drawn from the guard's own code rather than guessed from the test file's intent, and confirm a test goes red each time before restoring it.
+  One red mutation proves only the rule it removed; crediting the whole file from it is itself the Must finding (`.agents/skills/tdd/SKILL.md`, "Guard-removal verification").
+- **Concurrency and lifecycle checklist.** Whenever a surviving line touches connections, pools, background tasks, sockets, locks, slots or claims, or per-session or per-connection cached state, run `.agents/skills/self-review/SKILL.md`'s "Concurrency and lifecycle checklist (triggered)" against the surviving lines; its item 6 applies to every pending operation those lines add, not only a client await.
+- **Governed artefacts.** A surviving line in a file the artefact map lists (`.forge/agent-skills-and-reference.md`, "Artefacts and the skills that govern them") is checked against that file's governing skill, and its own Conventions section where it has one, as the self-review does (SDLC-119); a Conventions line contradicting the skill is a finding, and a break in form alone is a Should, never a Must, since nothing is broken.
 - Everything else follows the MoSCoW definitions in `.agents/skills/code-review/SKILL.md`.
 
 ## Security axis
@@ -71,7 +65,9 @@ Distinguish two shapes of finding:
 Name this axis explicitly in each review sub-agent's brief (step 4); a brief that omits it gets a review that skips security entirely.
 Record in the run's archive comment (step 7) which `docs/security/` files were checked.
 
-**Merge-written text is in scope too.** A PR's title and description, the commit messages a squash or merge writes, and the author/committer identity on each of those commits can all carry text that never appears as a line in any file's diff — so the per-file surviving-line review in step 3 never sees any of it. For every PR in the window, read its title and body and, for the commits that landed for it, both the message and the identity (`git log --format='%H%n%an <%ae>%n%cn <%ce>%n%B%n---' <sha>..origin/main`, substituting the watermark line's own `<sha>`; the trailing `---` line separates one commit's output from the next, since `%B` can itself contain blank lines), and ask: did any of it disclose something that shouldn't be public (a personal address or name on a commit author/committer line, not only in the message body), or carry a closing keyword next to the wrong issue or PR reference? Grade a finding here like any other. The fix for text already on `main` is the project's own call (editing a PR body where the platform allows it, a history rewrite) — this pass files the finding and never applies that fix itself.
+**Merge-written text is in scope too.** A PR's title and description, the commit messages a squash or merge writes, and each commit's author/committer identity never appear in any file's diff, so step 3 never sees them.
+For every PR in the window, read its title and body and, for its landed commits, each message and identity (`git log --format='%H%n%an <%ae>%n%cn <%ce>%n%B%n---' <sha>..origin/main`, substituting the watermark line's `<sha>`; the `---` line separates commits, since `%B` can contain blank lines), and ask: did any of it disclose something that shouldn't be public (a personal address or name on an author/committer line, not only in a message body), or put a closing keyword next to the wrong issue or PR reference?
+Grade a finding here like any other; fixing text already on `main` (editing a PR body, a history rewrite) is the project's call, and this pass only files it.
 
 ## Cadence
 
@@ -92,7 +88,9 @@ Substitute the `merged <ISO8601>` timestamp from the watermark line currently re
 The pass reviews files on current `main`, not PRs, so nothing gets reviewed twice and nothing dead gets reviewed:
 
 1. Run the query above to list PRs merged since the watermark (or, more reliably, first-parent `git log <sha>..origin/main`, substituting the watermark line's own `<sha>`).
-   **Resolve each commit in that window to its PR with `scripts/detect_pr_for_commit.py {{ repo_owner }}/{{ repo_name }} <sha>`, never by parsing its title or message.** It runs the `merge_commit_sha` lookup (`gh api repos/{{ repo_owner }}/{{ repo_name }}/commits/<sha>/pulls`) and exits 1, flagged, only when no PR matches *and* the committer isn't GitHub's own merge identity (`GitHub <noreply@github.com>`/`web-flow`); title or message text (a `(#N)` suffix, an issue number) is never consulted, since that misreads a real PR's squash commit as a direct-to-main bypass whenever the merger supplied a custom squash title with no such suffix. A flagged commit is the real signal of a direct-to-main bypass: file it as its own `needs-decision` finding, never silently folded into this run's ordinary window.
+   **Resolve each commit in that window to its PR with `scripts/detect_pr_for_commit.py {{ repo_owner }}/{{ repo_name }} <sha>`, never by parsing its title or message** (a custom squash title with no `(#N)` suffix would read as a bypass).
+   It runs the `merge_commit_sha` lookup (`gh api repos/{{ repo_owner }}/{{ repo_name }}/commits/<sha>/pulls`) and exits 1, flagged, only when no PR matches *and* the committer isn't GitHub's own merge identity (`GitHub <noreply@github.com>`/`web-flow`).
+   A flagged commit is a real direct-to-main bypass: file it as its own `needs-decision` finding, never folded silently into this run's window.
    Re-review **every** PR in the window; this pass exists for cross-PR bugs a per-PR review can't see.
    Then list the pending notes ("Pending reviews" above) that no archive comment has yet covered, and check each noted PR is in the window.
    Add a noted PR the query missed to the window, unless an earlier run's verdicts already reviewed it, in which case list its note as covered in step 7 without reviewing it again.
@@ -110,7 +108,8 @@ The pass reviews files on current `main`, not PRs, so nothing gets reviewed twic
    A batch that is purely mechanical (docs-only, small verbatim extractions) can instead be dispatched at mechanical-tier; substantive batches default to review-tier.
    - Each review sub-agent **must report which model it actually ran on**; don't trust a tier alias silently.
      It also writes its report incrementally to the working folder ({{ working_folder }}) as it goes, so a restart mid-batch doesn't lose the work.
-   - Every review-tier reviewer's brief opens with this tier gate, before any of the batch content below, as the first thing that sub-agent does. This is post-merge-review's own version of `.forge/orchestration.md`'s "Tier gate": `get_session` with no id reports the *orchestrating* (parent) session's model, not a dispatched sub-agent's own, so it cannot verify this sub-agent's tier and is not used as the check (owner decision; a mechanical-tier batch is dispatched at that tier on purpose and carries no gate):
+   - Every review-tier reviewer's brief opens with this tier gate, the first thing the sub-agent does, before any batch content.
+     It is this skill's own version of `.forge/orchestration.md`'s "Tier gate", because `get_session` with no id reports the orchestrating session's model, not a sub-agent's (owner decision); a mechanical-tier batch, dispatched at that tier on purpose, carries no gate:
 
      > Before any other work, state the model actually serving this turn, read from your own system prompt, and check it against what `.forge/model-tiers.md` maps this tier to.
      > This self-report is the check and the recorded evidence; `get_session` with no id reports the orchestrating session's model, not yours, so don't use it to decide whether to proceed. If you call it anyway and it disagrees with your self-report, note the mismatch in your report without acting on it.
@@ -119,7 +118,7 @@ The pass reviews files on current `main`, not PRs, so nothing gets reviewed twic
      > Running on a model above the mapped one is not a problem: note it in one line and proceed.
    - Give each reviewer: its batch's file list; each file's surviving-line ranges and which PRs contributed each range; the contributing PRs' unresolved review threads for those ranges, to verify independently rather than trust; the MoSCoW definitions, the grading rules and the security axis above, naming the security axis explicitly; for each file in its batch that the artefact map lists, its governing skill and the form-rule sections the row names, naming this check explicitly; an instruction to review each file exactly once, covering every surviving line and crediting each finding to the PRs whose lines it falls in; an instruction to confirm every finding is still present on current `origin/main`, cite file and line, and include a repro where feasible; and an instruction not to post anything or edit any code.
    - If no sub-agent dispatch is available, don't silently substitute a single-session partial pass: the archive comment says exactly which files and subsystems were covered and which were left, and the watermark doesn't advance past the uncovered portion.
-   - **Merge-written text is its own batch, not split across the subsystem batches above.** It isn't file-scoped, so giving every batch the whole window's PR titles, bodies, commit messages and commit identities would review each one several times over. Dispatch one reviewer at review-tier over the window's merge-written text, giving it every in-window PR's title and body plus `git log --format='%H%n%an <%ae>%n%cn <%ce>%n%B%n---' <sha>..origin/main` (substituting the watermark line's own `<sha>`), the security axis's merge-written-text question above — naming author and committer identity explicitly as part of it, not only the message body — and the same MoSCoW and grading rules as the other batches.
+   - **Merge-written text is its own batch**, since it isn't file-scoped and splitting it would review it several times over: one review-tier reviewer gets every in-window PR's title and body plus `git log --format='%H%n%an <%ae>%n%cn <%ce>%n%B%n---' <sha>..origin/main` (substituting the watermark line's `<sha>`), the security axis's merge-written-text question, naming author and committer identity explicitly, not only the message body, and the same MoSCoW and grading rules.
    - **Dispatch each batch against its own private worktree**, never the thread's shared checkout, whenever a local full-suite run or another batch might be running there.
    - **The window can grow mid-run.** Before filing or advancing the watermark, re-fetch and compare the window with what every batch actually covered.
      Either check a small, well-understood gap directly, or leave substantial newly merged PRs for the next pass; either way, never advance the watermark past a PR no batch covered.
@@ -143,7 +142,8 @@ The pass reviews files on current `main`, not PRs, so nothing gets reviewed twic
        Check no local full-suite run is in progress, and don't start while step 4's reviewers are still running.
        Use the project's pinned mutation tool for each language, limited to the sampled module and its sampled tests.
        Bound each module to 20 minutes of wall clock and the whole sample to 60; a module that hits the cap is reported with partial counts and "timed out", not retried.
-       If the tool cannot run the sampled tests cleanly, do 3 hand mutations for that module (mutate, run the one test, revert) and file one Should naming the test file; don't debug tooling inside a review pass. This fallback is still this gated, tool-driven mutation-testing sample, not guard-removal verification (`.agents/skills/tdd/SKILL.md`): it's a module-wide sample run under step 5a's owner gate, never the routine per-guard check build threads do every ticket.
+       If the tool cannot run the sampled tests cleanly, do 3 hand mutations for that module (mutate, run the one test, revert) and file one Should naming the test file; don't debug tooling inside a review pass.
+       That fallback is still this owner-gated, module-wide sample, not the per-guard guard-removal check build threads do every ticket (`.agents/skills/tdd/SKILL.md`).
     4. **Decide what is a finding.** A sampled test that covers at least one mutant and kills none is a finding.
        Two tests at the same seam that kill exactly the same mutants are *candidates* for duplication, never a deletion order; keep the clearer one unless the other encodes a past regression.
        Surviving mutants no sampled test covers are coverage gaps, not findings; record only the count.
@@ -154,22 +154,23 @@ The pass reviews files on current `main`, not PRs, so nothing gets reviewed twic
 6. File the findings, bundled by theme rather than one ticket per finding:
    - **Must findings each get their own ticket**, kept apart from any bundle, so they stay fast to pick up.
    - **Should findings are grouped by file or feature area into one ticket per theme for this run.** A theme is whatever natural grouping the run's batches produced; don't split a theme just to keep tickets small.
-   - **A genuine open design question with no fix sketch is flagged to the owner and gets its own `deferred-arch-finding` ticket** under the architecture-findings epic {{ arch_ref }}, instead of a bundle or a Could one-liner.
+   - **A genuine open design question with no fix sketch gets its own `needs-decision` ticket for the owner**, instead of a bundle or a Could one-liner; the owner decides whether it is addressed or parked as a `deferred-arch-finding` under the architecture-findings epic {{ arch_ref }} (`.forge/post-merge-review.md`, SDLC-039).
    - **If an open sub-issue already covers the same feature area, add the new findings to it as a comment** instead of opening a new ticket.
    - Otherwise, create a new sub-issue under the tracker {{ pmr_ref }}, per Must or per theme, labelled `ready-for-build` or `ready-for-structure` per `docs/agents/triage-labels.md`'s routing criteria (on any doubt, `ready-for-structure`).
    - Every Must or Should ticket asks for the fix PR's `Evidence:` line to list by name the other members of the finding's class it checked, and the source that list came from (the code that handles the cases, or the list, schema or specification that defines them), not only the examples the ticket names.
    - Could and Won't findings never get their own ticket; they go only in this run's archive comment as one-liners.
-   - **Two or more filed findings with the same shape** (the same kind of mistake, wherever it sits): as well as filing them, put one decision card per shape to the owner asking "Is there a principle here?".
-     The card names the shape, the tickets that carry it, and a one-line candidate statement; if `docs/principles.md` already has a principle the shape breaks, it asks instead whether that principle's enforcement should be tightened.
-     Options: "Add it as a principle" and "No, the tickets cover it"; carry on without waiting.
-     A yes is queued as a `ready-for-build` ticket whose build adds or tightens the entry through `domain-modeling`; this procedure never edits `docs/principles.md` itself.
+   - **Two or more filed findings with the same shape** (the same kind of mistake, wherever it sits): as well as filing them, name the skill whose instructions could carry a rule against that shape (the skill that wrote, reviewed or merged the code the shape recurred in), and put one decision card per shape to the owner naming that skill: "Strengthen `<skill>`" against "No, the tickets cover it".
+     Put a principle forward instead, with the same card shape, only when no skill can plausibly carry the rule — the shape isn't about following a procedure a skill directs, but a standing fact about the codebase or domain itself — and say why on the card.
+     If `docs/principles.md` already has a principle the shape breaks, ask instead whether that principle's enforcement should be tightened, the same as before.
+     A yes to "Strengthen" is queued as a `ready-for-build` ticket whose build edits that skill's own file; a yes to "Add it as a principle" is queued the same way through `domain-modeling`. This procedure never edits a skill file or `docs/principles.md` itself.
 7. Post one comment on the tracker {{ pmr_ref }} for the run: the per-PR verdicts (its verdict and which sub-issue it fed), the pending notes it covered and any it left pending, any in-window PR that had no note, the Could and Won't list, any same-shape card from step 6 with the owner's answer once given, which `docs/security/` files the security axis checked, and a **Reviewers** block.
    The Reviewers block has one row per batch, naming the subsystem (or "merge-written text" for that batch), the sub-agent's id, its tier, and the model it reported running on; this is the only place that detail lives, never the issue body.
-   Lead the comment with a machine-readable marker, `<!-- post-merge-review-archive covered=<PR number>,<PR number>,... -->`, listing every PR this run marks covered (the ones with a verdict in this run, plus any already-reviewed note re-covered per the "Pending reviews" section above) — never the PRs left pending or the ones with no note at all.
-   This is what `queue-sweep` check 11(a) reads to tell a real archive comment apart from any other comment on the same tracker (a pending note, or a differently-shaped note such as `watch-main-ci` Routine 2's missing-script note) without relying on elimination, and to check a specific PR's note against rather than only the comment's own timestamp.
+   Lead the comment with the marker `<!-- post-merge-review-archive covered=<PR number>,<PR number>,... -->`, listing every PR this run marks covered (those with a verdict in this run, plus any already-reviewed note re-covered per "Pending reviews"), never those left pending or with no note.
+   `queue-sweep` check 11(a) reads it to tell an archive comment from any other tracker comment (a pending note, or `watch-main-ci` Routine 2's missing-script note) and to check a specific PR's note against it.
    Save any repro script written to confirm a finding in the working folder ({{ working_folder }}), under a per-run directory.
 8. Comment once on each merged PR that has Must or Should findings, pointing to its sub-issue.
-9. Update the **watermark** to `**Watermark:** <sha> (PR #<n>, merged <ISO8601>)` — the canonical line every other step and file in this family reads, carrying the commit, the PR number and that PR's own merge timestamp together so nothing downstream needs a second lookup for any of the three. Append one row to the **run log** table in the tracker's body linking to this run's archive comment.
+9. Update the **watermark** to `**Watermark:** <sha> (PR #<n>, merged <ISO8601>)`, the canonical line every other step and file reads, carrying commit, PR number and merge timestamp together.
+   Append one row to the **run log** table in the tracker's body linking to this run's archive comment.
    Mark a PR covered once every surviving line it contributed has been reviewed in this or an earlier run, or superseded by a later commit.
    **A run that did not cover its whole window must not advance the watermark**; it still appends its run log row, marked partial, so the gap is visible.
 

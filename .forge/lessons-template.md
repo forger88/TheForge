@@ -22,7 +22,7 @@ A lesson that turns out to be an instance of a wider pattern is generalised, and
 It grows with the project's own incidents; `copier update` never touches it.
 The seed lessons are generic enough to state directly:
 
-- **Concurrent sessions in one checkout**: give each agent session its own `git worktree`; a shared `HEAD` and index silently cross-contaminate two sessions' work.
+- **Concurrent sessions in one checkout**: give each agent session its own `git worktree` (`scripts/worktree_setup.py` makes this one call); a shared `HEAD` and index silently cross-contaminate two sessions' work.
 - **Off-the-shelf first**: before hand-rolling more than about 20 lines of generic infrastructure (process lifecycle, locking, retries, caching, validation, auth), find the library.
 - **Don't switch branches under a running test run**: no branch switch, stash or checkout in a worktree while a background test run is still executing there, because a module collected after the switch can fail spuriously.
 

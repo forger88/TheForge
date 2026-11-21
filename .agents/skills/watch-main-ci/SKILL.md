@@ -20,14 +20,21 @@ Change a row here (and record it in `docs/forge-overrides.md`) when the project'
 | Queue-sweep procedure | `.agents/skills/queue-sweep/SKILL.md` |
 | Forge drift check | `scripts/check_forge_drift.py` |
 | Build-thread setup recipe | `docs/agents/build-thread-setup.md` |
-| Local full-suite script | `scripts/local-full-suite.sh` (project-owned; not generated, see "Routine 2") |
+| Local full-suite script | `scripts/local-full-suite.sh` (project-owned; not generated, see "Routine 2"; the `local_full_suite_script` answer) |
+| Local full-suite publish switch | `LOCAL_FULL_SUITE_PUBLISH` (the `local_full_suite_publish_var` answer) |
 | Shared setup command | `pip install pre-commit==4.3.0 && pre-commit install --install-hooks` |
 | Full test suite command | `python3 -m unittest discover -s scripts -p 'test_*.py' && python3 -m unittest discover -s template/scripts -p 'test_*.py'` |
 | Dispatched CI workflows (scheduled pass) | every check workflow under `.github/workflows/`; list them here by name once stage 0 settles them |
 | Working folder for mutable state | the harness's shared project folder |
 | Held sync ticket's trusted author | `forger88` — correct only when this repo is owned by a user, since a GitHub issue is always authored by a user account and never by an organisation. If `forger88` names an organisation, change this row to the actual account Main Health and `forge-sync` authenticate and post as, and record the override in `docs/forge-overrides.md` |
 
+The two local full-suite rows above change through their own answers (`.forge/ci-and-checks.md` names the `copier update` command), not by editing the row.
+Only the script's name, its publish switch, and the status-context prefix derived from the script's basename vary per project this way.
+Routine 2's mechanics below are a fixed forge contract, not a per-project answer: the exclusive lock with `--is-running` and its overlap exit code, the `SKIP` list, both markers, and `last-verified.txt`.
+A project whose stand-in genuinely works differently (no lock, a differently-shaped baseline file, and the like) either converges its script on this contract or keeps a mechanics-only entry in `docs/forge-overrides.md`.
+
 This is the complete routine for the Main Health thread: not just reading CI, but the two scheduled checks that stand in for it, the setup they share, which tier runs which part, and how one thread hands off to the next.
+
 It's written to the repo rather than kept only as project instructions or a working file, so the routine survives losing either of those.
 Read this file first on every rotation; don't rely on remembering it from an earlier thread's context.
 `.forge/main-health-patterns.md` says what this thread watches and when it escalates; this file says how.

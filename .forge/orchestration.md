@@ -74,6 +74,7 @@ A thread already confirmed on the right tier for the current session (for exampl
   Releasing the slot never means going quiet: a blocked thread keeps answering the owner's and the coordinator's questions and doing whatever discovery or drafting the blocker needs — that conversation is not slotted work and never needs a slot.
   It does no further implementation on the ticket until the blocker clears.
   Once the blocker clears, the thread (or its follow-on) waits for a free slot like any other queued thread; it never preempts a thread already running.
+  A freed slot is itself the trigger to fill it: in the same check that notices the release, hand it to the next queued ticket — don't wait for the thread to come back, or for the next 30-minute check, to notice an idle slot.
 - One ticket at a time per thread, handed out by the coordinator; a thread never picks its own next ticket.
 - After every completed build, the build thread posts its completion together with "Tell me or my follow-on thread what's next on the queue", so the coordinator is woken to hand out the next ticket.
 - Bug fixes go ahead of feature work.

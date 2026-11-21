@@ -1,14 +1,12 @@
 # Capability tiers to models, per harness
 
-Instructions here are duplicated, pithily, into `coordinator-core.md` for agent harness that cannot load and handle this instructions file directly.
-TheForge's coordinator-core ADR records why that file exists and the constraints that must survive every edit to it.
+This file's instructions are duplicated, pithily, into `coordinator-core.md` for a harness that cannot load this file directly.
+TheForge's coordinator-core ADR records why that file exists and what must survive every edit to it.
 A change here updates `.forge/coordinator-core.md` in the same change.
 TheForge's `lock` check fails until the core section citing this one is re-read and the lock refreshed.
 
-The agent instructions and skills talk about work in four capability tiers (design-tier, review-tier, build-tier, mechanical-tier), defined by the judgement each needs (`.forge/orchestration.md`).
-That wording works in any agent harness.
-This file is where a harness says which model it runs for each tier, and it is the only file in the repo allowed to name a model, apart from `.forge/coordinator-core.md`'s duplicate of this mapping.
-Changing a model is therefore a one-file change.
+The instructions and skills name four harness-neutral capability tiers (design-tier, review-tier, build-tier, mechanical-tier), defined by the judgement each needs (`.forge/orchestration.md`).
+This file says which model a harness runs for each tier, and is the only file in the repo allowed to name a model, apart from `.forge/coordinator-core.md`'s duplicate of this mapping, so changing a model is a one-file change.
 
 A project that changes this mapping records the edit in `docs/forge-overrides.md` (`.forge/forge-overrides.md`).
 
@@ -25,10 +23,10 @@ For Claude, that is the newest Opus for design-tier and review-tier, Sonnet for 
 
 ## Rules that follow from the tiers
 
-- `security-docs`, in all three of its modes, runs at design-tier: a threat model written by a tier that is not doing the security reasoning is decoration.
-- A sub-agent reports the model it actually ran on; a tier alias is not trusted silently.
-  A sub-agent's own system-prompt self-report is that evidence: a tool that queries "the current session" (such as Claude Code's `get_session` with no id) reports the *orchestrating* session's model from inside a dispatched sub-agent, not the sub-agent's own, so it cannot stand in for the self-report and a mismatch between the two is noted, not acted on (post-merge-review's reviewer gate, `.agents/skills/post-merge-review/SKILL.md` step 4, is the first procedure built on this; owner decision).
-- design-tier and review-tier may resolve to the same model, and stay distinct tiers because the two kinds of work are judged differently.
+- `security-docs` runs at design-tier in all three modes: a threat model written by a tier not doing the security reasoning is decoration.
+- A sub-agent reports the model it actually ran on, from its own system-prompt self-report; a tier alias is not trusted silently.
+  A "current session" query (such as Claude Code's `get_session` with no id) run inside a dispatched sub-agent reports the *orchestrating* session's model, so it cannot stand in for the self-report, and a mismatch between the two is noted, not acted on (owner decision; first built on by post-merge-review's reviewer gate, `.agents/skills/post-merge-review/SKILL.md` step 4).
+- design-tier and review-tier may resolve to the same model and stay distinct tiers, because the two kinds of work are judged differently.
 
 ## Other harnesses
 
